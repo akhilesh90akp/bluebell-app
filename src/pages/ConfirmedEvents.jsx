@@ -17,12 +17,12 @@ import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink } from '
 import {
   Search, Phone, MessageSquare, FileText, CheckCircle2,
   CalendarDays, MapPin, PackageOpen, Plus, X, Receipt, Edit3,
-  ChevronDown, ChevronUp, Home, Navigation, StickyNote,
+  ChevronDown, ChevronUp, Home, Navigation, StickyNote, Trash2,
 } from 'lucide-react';
 
 /** Manages confirmed events with pricing, item addition, and completion */
 export default function ConfirmedEvents() {
-  const { events, categories, updateEvent } = useApp();
+  const { events, categories, updateEvent, deleteEvent } = useApp();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
@@ -30,6 +30,7 @@ export default function ConfirmedEvents() {
   const [newItem, setNewItem] = useState('');
   const [prices, setPrices] = useState({});
   const [expandedId, setExpandedId] = useState(null);
+  const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
 
   // Filter confirmed/completed events by search query
   const confirmedEvents = events
@@ -234,6 +235,7 @@ export default function ConfirmedEvents() {
                         {ev.status === 'confirmed' && (
                           <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
                         )}
+                        <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
                       </div>
                     </div>
                   )}
@@ -246,6 +248,7 @@ export default function ConfirmedEvents() {
                       <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
                       <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
                       <Button size="sm" variant="secondary" icon={Receipt} onClick={() => navigate(`/bill/${ev.id}`)}>Bill</Button>
+                      <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
                     </div>
                   )}
                 </div>
@@ -334,6 +337,15 @@ export default function ConfirmedEvents() {
             </p>
             <Button onClick={savePrices}>Save Prices</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Delete Event?" size="sm">
+        <p className="text-bb-muted mb-4">Are you sure you want to delete this event? This action cannot be undone.</p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
+          <Button variant="danger" onClick={() => { deleteEvent(deleteId); setDeleteId(null); }}>Delete</Button>
         </div>
       </Modal>
     </div>

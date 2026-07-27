@@ -42,8 +42,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       <div
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-bb-card border border-bb-border rounded-xl shadow-2xl
-          animate-in fade-in zoom-in-95
+          bg-white border border-bb-border rounded-xl shadow-2xl
         `}
       >
         {/* Header with title and close button */}
