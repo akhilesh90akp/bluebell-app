@@ -61,10 +61,23 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   main { margin: 0 !important; padding: 0 !important; margin-left: 0 !important; }
   .lg\:ml-\[240px\] { margin-left: 0 !important; }
 
-  /* Page setup for A4 printing */
+  /* Force A4 page size */
   @page {
-    margin: 15mm 12mm;
+    margin: 10mm;
     size: A4;
+  }
+
+  /* Force the printable document to always render at A4 width (210mm)
+     This fixes mobile printing where content was too narrow */
+  .print-a4 {
+    width: 190mm !important;
+    min-width: 190mm !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 8mm !important;
+    font-size: 10pt !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   /* Prevent tables from breaking mid-row */
@@ -72,9 +85,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   tr { page-break-inside: avoid; page-break-after: auto; }
   thead { display: table-header-group; }
 
-  /* Keep sections together */
-  .print\\:break-inside-avoid { break-inside: avoid; }
+  /* Keep sections together on same page */
+  .print-section { break-inside: avoid; }
 
-  /* Ensure white background on printable areas */
+  /* White background for print */
   .bg-white { background: white !important; box-shadow: none !important; border-radius: 0 !important; }
 }

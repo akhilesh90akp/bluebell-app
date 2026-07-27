@@ -324,7 +324,7 @@ export default function QuotationGenerator() {
       </Modal>
 
       {/* === Quotation Preview - printable document === */}
-      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print:shadow-none print:rounded-none print:m-0">
+      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4">
         <div className="p-6 sm:p-8 print:p-10">
 
           {/* QUOTATION title at top center */}
