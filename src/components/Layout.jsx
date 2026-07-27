@@ -80,45 +80,53 @@ export default function Layout() {
 
       {/* === MOBILE BOTTOM NAV (below 1024px) === */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-bb-sidebar/95 backdrop-blur-md border-t border-bb-sidebar-border z-50">
-        <div className="relative flex items-center justify-around h-full max-w-md mx-auto px-4">
-          {/* Left 2 nav items */}
-          {mobileNav.slice(0, 2).map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-xl transition-colors
-                ${isActive ? 'text-bb-accent' : 'text-bb-sidebar-muted'}`
-              }
-            >
-              <item.icon size={20} />
-              <span className="text-[10px]">{item.label}</span>
-            </NavLink>
-          ))}
+        <div className="grid grid-cols-5 items-center h-full w-full">
+          {/* Left 2 items */}
+          {mobileNav.slice(0, 2).map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center gap-0.5 py-2 transition-colors
+                  ${isActive ? 'text-bb-accent' : 'text-bb-sidebar-muted'}`
+                }
+              >
+                <Icon size={20} />
+                <span className="text-[10px]">{item.label}</span>
+              </NavLink>
+            );
+          })}
 
-          {/* Center FAB button - navigates to new event creation */}
-          <button
-            onClick={() => navigate('/new')}
-            className="absolute left-1/2 -translate-x-1/2 -top-5 w-14 h-14 rounded-full bg-bb-accent hover:bg-bb-accent-hover shadow-lg shadow-bb-accent/40 flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
-          >
-            <Plus size={26} className="text-white" strokeWidth={2.5} />
-          </button>
-
-          {/* Right 2 nav items */}
-          {mobileNav.slice(2).map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-xl transition-colors
-                ${isActive ? 'text-bb-accent' : 'text-bb-sidebar-muted'}`
-              }
+          {/* Center: FAB Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => navigate('/new')}
+              className="w-14 h-14 -mt-7 rounded-full bg-bb-accent hover:bg-bb-accent-hover shadow-lg shadow-bb-accent/40 flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
             >
-              <item.icon size={20} />
-              <span className="text-[10px]">{item.label}</span>
-            </NavLink>
-          ))}
+              <Plus size={26} className="text-white" strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Right 2 items */}
+          {mobileNav.slice(2).map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center gap-0.5 py-2 transition-colors
+                  ${isActive ? 'text-bb-accent' : 'text-bb-sidebar-muted'}`
+                }
+              >
+                <Icon size={20} />
+                <span className="text-[10px]">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
     </div>
