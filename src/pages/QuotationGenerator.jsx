@@ -5,7 +5,7 @@
  * setting per-item quantities and rates, enabling GST, and grouping items by category.
  * Supports printing, WhatsApp sharing, and saving item prices back to the event.
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
@@ -15,6 +15,7 @@ import Select from '../components/Select';
 import Toggle from '../components/Toggle';
 import Modal from '../components/Modal';
 import { formatCurrency, formatDateReadable, calcGST, waLink } from '../utils/helpers';
+import { generatePDF } from '../utils/pdf';
 import { ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package, ChevronDown, ChevronRight } from 'lucide-react';
 
 /** Builds and previews a printable quotation document for an event */
@@ -154,7 +155,8 @@ export default function QuotationGenerator() {
   };
 
   /** Triggers the browser print dialog */
-  const handlePrint = () => window.print();
+  const pdfRef = useRef(null);
+  const handlePrint = () => generatePDF(pdfRef.current, `Quotation-${event.clientName}`);
 
   /** Generates a formatted WhatsApp message with quotation details */
   const generateWhatsAppMsg = () => {
@@ -324,7 +326,7 @@ export default function QuotationGenerator() {
       </Modal>
 
       {/* === Quotation Preview - printable document === */}
-      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4" style={{minWidth: "700px"}}>
+      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4" >
         <div className="p-6 sm:p-8 print:p-10">
 
           {/* QUOTATION title at top center */}

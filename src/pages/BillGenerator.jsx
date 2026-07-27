@@ -5,7 +5,7 @@
  * Supports configurable invoice number, discount, GST (intra/inter-state),
  * and round-off. Includes print and WhatsApp sharing capabilities.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Button from '../components/Button';
@@ -14,6 +14,7 @@ import Select from '../components/Select';
 import Toggle from '../components/Toggle';
 import Card from '../components/Card';
 import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
+import { generatePDF } from '../utils/pdf';
 import { DEFAULT_SAC_CODE } from '../constants/data';
 import { ArrowLeft, Printer, MessageSquare } from 'lucide-react';
 
@@ -63,7 +64,8 @@ export default function BillGenerator() {
   }
 
   /** Triggers the browser print dialog */
-  const handlePrint = () => window.print();
+  const pdfRef = useRef(null);
+  const handlePrint = () => generatePDF(pdfRef.current, `Invoice-${invoiceNo}`);
 
   /** Generates a formatted WhatsApp message with invoice details */
   const generateWhatsAppMsg = () => {
@@ -135,7 +137,7 @@ export default function BillGenerator() {
       </div>
 
       {/* === Invoice Preview - printable document === */}
-      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4" style={{minWidth: "700px"}}>
+      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4" >
         <div className="p-8 sm:p-10">
 
           {/* INVOICE title at top center */}
