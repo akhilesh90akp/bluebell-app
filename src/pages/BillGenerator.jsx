@@ -14,7 +14,6 @@ import Select from '../components/Select';
 import Toggle from '../components/Toggle';
 import Card from '../components/Card';
 import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
-import { generatePDF } from '../utils/pdf';
 import { DEFAULT_SAC_CODE } from '../constants/data';
 import { ArrowLeft, Printer, MessageSquare } from 'lucide-react';
 
@@ -65,7 +64,7 @@ export default function BillGenerator() {
 
   /** Triggers the browser print dialog */
   const pdfRef = useRef(null);
-  const handlePrint = () => generatePDF(pdfRef.current, `Invoice-${invoiceNo}`);
+  const handlePrint = () => window.print();
 
   /** Generates a formatted WhatsApp message with invoice details */
   const generateWhatsAppMsg = () => {
@@ -137,7 +136,7 @@ export default function BillGenerator() {
       </div>
 
       {/* === Invoice Preview - printable document === */}
-      <div ref={pdfRef} className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden">
+      <div ref={pdfRef} className="bg-white rounded-xl shadow-lg text-gray-800 overflow-x-auto print-doc">
         <div className="p-8 sm:p-10">
 
           {/* INVOICE title at top center */}

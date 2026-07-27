@@ -62,39 +62,25 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   .lg\:ml-\[240px\] { margin-left: 0 !important; }
 
   @page {
-    margin: 8mm;
+    margin: 10mm;
     size: A4;
   }
 
-  /* Force the printable document to always render at a fixed width
-     so content never gets cut off even on narrow mobile screens.
-     700px approximates A4 content width at 96dpi minus margins. */
-  .print-a4 {
-    width: 700px !important;
-    min-width: 700px !important;
-    max-width: 700px !important;
-    margin: 0 auto !important;
-    padding: 24px !important;
-    font-size: 9pt !important;
+  /* Make print document full A4 width */
+  .print-doc {
+    width: 100% !important;
+    max-width: 100% !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    font-size: 10pt !important;
   }
 
-  /* Scale down text slightly to fit A4 */
-  .print-a4 table { font-size: 8.5pt !important; }
-  .print-a4 h1 { font-size: 16pt !important; }
-  .print-a4 h2 { font-size: 13pt !important; }
-  .print-a4 h3 { font-size: 11pt !important; }
-
-  /* Prevent tables from breaking mid-row */
-  table { page-break-inside: auto; }
-  tr { page-break-inside: avoid; page-break-after: auto; }
+  table { page-break-inside: auto; font-size: 9pt !important; }
+  tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
-
-  /* Keep sections together */
   .print-section { break-inside: avoid; }
-
-  /* White background for print */
   .bg-white { background: white !important; box-shadow: none !important; border-radius: 0 !important; }
 }
