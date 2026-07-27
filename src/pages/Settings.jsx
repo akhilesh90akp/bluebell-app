@@ -15,7 +15,7 @@ import { Save, Plus, Trash2, Edit2, X, Building2, Landmark, FileText, Layers, Us
 
 /** Multi-tab settings page for company, bank, invoice, and service configuration */
 export default function Settings() {
-  const { settings, categories, updateSettings, addCategory, updateCategory, deleteCategory, addItemToCat, removeItemFromCat } = useApp();
+  const { settings, categories, updateSettings, addCategory, updateCategory, deleteCategory, addItemToCat, removeItemFromCat, logout, user } = useApp();
   const [tab, setTab] = useState('company');
   const [form, setForm] = useState({ ...settings, bankDetails: { ...settings.bankDetails } });
   const [catModal, setCatModal] = useState(null); // category id for item management modal
@@ -262,13 +262,29 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Team Tab - placeholder for future Firebase integration */}
+      {/* Team Tab - now shows logged-in user + logout */}
       {tab === 'team' && (
         <Card>
-          <div className="text-center py-8">
-            <Users size={40} className="mx-auto text-bb-muted mb-3" />
-            <p className="text-bb-muted font-medium">Team Management</p>
-            <p className="text-sm text-bb-muted/60 mt-1">Connect Firebase to enable team features</p>
+          <div className="space-y-4">
+            {user && (
+              <div className="flex items-center gap-3 p-3 bg-bb-input rounded-lg">
+                {user.photoURL && <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full" />}
+                <div>
+                  <p className="text-sm font-medium text-bb-text">{user.displayName || 'User'}</p>
+                  <p className="text-xs text-bb-muted">{user.email}</p>
+                </div>
+              </div>
+            )}
+            <div className="text-center py-4">
+              <Users size={32} className="mx-auto text-bb-muted mb-2" />
+              <p className="text-sm text-bb-muted">Team member management coming soon</p>
+            </div>
+            <button
+              onClick={logout}
+              className="w-full px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg text-sm transition-colors cursor-pointer"
+            >
+              Sign Out
+            </button>
           </div>
         </Card>
       )}

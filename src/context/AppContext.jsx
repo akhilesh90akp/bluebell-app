@@ -1,82 +1,173 @@
 /**
- * AppContext - Global application state management
- *
- * Provides centralized state for events, settings, and service categories.
- * Data is persisted to localStorage and loaded on app initialization.
- * Exposes CRUD operations for events, settings, and categories.
+ * AppContext - Global state with Firebase Firestore sync
+ * 
+ * All data is stored in Firestore under the user's UID.
+ * Events, settings, and categories sync across all devices.
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { DEFAULT_SETTINGS, DEFAULT_CATEGORIES } from '../constants/data';
 import { genId } from '../utils/helpers';
 
 const Ctx = createContext();
 
-/** Provider component that wraps the app and supplies global state */
 export function AppProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [events, setEvents] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loaded, setLoaded] = useState(false);
 
-  // Load persisted data from localStorage on mount
+  // Listen for auth state changes
   useEffect(() => {
-    try {
-      const e = localStorage.getItem('bb_events');
-      const s = localStorage.getItem('bb_settings');
-      const c = localStorage.getItem('bb_categories');
-      if (e) setEvents(JSON.parse(e));
-      if (s) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(s) });
-      if (c) setCategories(JSON.parse(c));
-    } catch(err) { console.error(err); }
-    setLoaded(true);
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return unsub;
   }, []);
 
-  // Persist events to localStorage whenever they change
-  useEffect(() => { if (loaded) localStorage.setItem('bb_events', JSON.stringify(events)); }, [events, loaded]);
+  // Load data from Firestore when user logs in
+  useEffect(() => {
+    if (!user) {
+      setEvents([]);
+      setSettings(DEFAULT_SETTINGS);
+      setCategories(DEFAULT_CATEGORIES);
+      setLoaded(false);
+      return;
+    }
 
-  // Persist settings to localStorage whenever they change
-  useEffect(() => { if (loaded) localStorage.setItem('bb_settings', JSON.stringify(settings)); }, [settings, loaded]);
+    const loadData = async () => {
+      try {
+        // Load events (real-time listener)
+        const eventsRef = collection(db, 'users', user.uid, 'events');
+        const unsubEvents = onSnapshot(eventsRef, (snapshot) => {
+          const evs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setEvents(evs);
+        });
 
-  // Persist categories to localStorage whenever they change
-  useEffect(() => { if (loaded) localStorage.setItem('bb_categories', JSON.stringify(categories)); }, [categories, loaded]);
+        // Load settings
+        const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'config', 'settings'));
+        if (settingsDoc.exists()) {
+          setSettings({ ...DEFAULT_SETTINGS, ...settingsDoc.data() });
+        }
 
-  /** Creates a new event with generated ID and draft status */
-  const addEvent = (data) => {
-    const ev = { id: genId(), ...data, status: 'draft', createdAt: new Date().toISOString() };
-    setEvents(p => [...p, ev]);
-    return ev;
+        // Load categories
+        const catsDoc = await getDoc(doc(db, 'users', user.uid, 'config', 'categories'));
+        if (catsDoc.exists()) {
+          setCategories(catsDoc.data().list || DEFAULT_CATEGORIES);
+        }
+
+        setLoaded(true);
+        return () => unsubEvents();
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setLoaded(true);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  // === Event Operations ===
+
+  const addEvent = async (data) => {
+    const id = genId();
+    const ev = { ...data, status: 'draft', createdAt: new Date().toISOString() };
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'events', id), ev);
+    } catch (err) {
+      console.error('Error adding event:', err);
+    }
+    return { id, ...ev };
   };
 
-  /** Updates an existing event by ID with partial data */
-  const updateEvent = (id, data) => setEvents(p => p.map(e => e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e));
+  const updateEvent = async (id, data) => {
+    try {
+      const evRef = doc(db, 'users', user.uid, 'events', id);
+      await setDoc(evRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (err) {
+      console.error('Error updating event:', err);
+    }
+  };
 
-  /** Deletes an event by ID */
-  const deleteEvent = (id) => setEvents(p => p.filter(e => e.id !== id));
+  const deleteEvent = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'events', id));
+    } catch (err) {
+      console.error('Error deleting event:', err);
+    }
+  };
 
-  /** Merges new settings into the existing settings object */
-  const updateSettings = (data) => setSettings(p => ({ ...p, ...data }));
+  // === Settings Operations ===
 
-  /** Adds a new service category with generated ID */
-  const addCategory = (cat) => setCategories(p => [...p, { id: genId(), ...cat }]);
+  const updateSettings = async (data) => {
+    const newSettings = { ...settings, ...data };
+    setSettings(newSettings);
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'config', 'settings'), newSettings);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    }
+  };
 
-  /** Updates an existing category by ID */
-  const updateCategory = (id, data) => setCategories(p => p.map(c => c.id === id ? { ...c, ...data } : c));
+  // === Category Operations ===
 
-  /** Deletes a category by ID */
-  const deleteCategory = (id) => setCategories(p => p.filter(c => c.id !== id));
+  const saveCategories = async (cats) => {
+    setCategories(cats);
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'config', 'categories'), { list: cats });
+    } catch (err) {
+      console.error('Error saving categories:', err);
+    }
+  };
 
-  /** Appends an item to a specific category's items list */
-  const addItemToCat = (catId, item) => setCategories(p => p.map(c => c.id === catId ? { ...c, items: [...c.items, item] } : c));
+  const addCategory = (cat) => {
+    const updated = [...categories, { id: genId(), ...cat }];
+    saveCategories(updated);
+  };
 
-  /** Removes an item from a specific category's items list */
-  const removeItemFromCat = (catId, item) => setCategories(p => p.map(c => c.id === catId ? { ...c, items: c.items.filter(i => i !== item) } : c));
+  const updateCategory = (id, data) => {
+    const updated = categories.map(c => c.id === id ? { ...c, ...data } : c);
+    saveCategories(updated);
+  };
+
+  const deleteCategory = (id) => {
+    const updated = categories.filter(c => c.id !== id);
+    saveCategories(updated);
+  };
+
+  const addItemToCat = (catId, item) => {
+    const updated = categories.map(c => c.id === catId ? { ...c, items: [...c.items, item] } : c);
+    saveCategories(updated);
+  };
+
+  const removeItemFromCat = (catId, item) => {
+    const updated = categories.map(c => c.id === catId ? { ...c, items: c.items.filter(i => i !== item) } : c);
+    saveCategories(updated);
+  };
+
+  // === Auth Operations ===
+
+  const logout = async () => {
+    await signOut(auth);
+  };
 
   return (
-    <Ctx.Provider value={{ events, settings, categories, loaded, addEvent, updateEvent, deleteEvent, updateSettings, addCategory, updateCategory, deleteCategory, addItemToCat, removeItemFromCat }}>
+    <Ctx.Provider value={{
+      user, authLoading, logout,
+      events, settings, categories, loaded,
+      addEvent, updateEvent, deleteEvent,
+      updateSettings,
+      addCategory, updateCategory, deleteCategory,
+      addItemToCat, removeItemFromCat,
+    }}>
       {children}
     </Ctx.Provider>
   );
 }
 
-/** Custom hook to access the global app context */
 export const useApp = () => useContext(Ctx);
