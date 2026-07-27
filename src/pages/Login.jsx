@@ -1,24 +1,61 @@
 /**
  * Login Page - Google sign-in for Bluebell team
+ * Uses redirect on mobile/PWA (popup gets blocked), popup on desktop
  */
-import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Check for redirect result on page load (mobile flow)
+  useEffect(() => {
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        // Successfully signed in via redirect
+        setLoading(false);
+      }
+    }).catch((err) => {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message || 'Login failed.');
+      }
+      setLoading(false);
+    });
+  }, []);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+
+    // Detect if running as PWA (standalone) or on mobile
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                  window.navigator.standalone === true;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isPWA || isMobile) {
+        // Use redirect for mobile/PWA (popup gets blocked)
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Use popup for desktop browsers
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'Login failed. Please try again.');
+      // If popup fails, try redirect as fallback
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr) {
+          setError(redirectErr.message || 'Login failed.');
+        }
+      } else {
+        setError(err.message || 'Login failed. Please try again.');
+      }
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
