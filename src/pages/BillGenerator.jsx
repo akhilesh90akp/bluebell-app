@@ -137,7 +137,7 @@ export default function BillGenerator() {
       </div>
 
       {/* === Invoice Preview - printable document === */}
-      <div className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden print-a4" >
+      <div ref={pdfRef} className="bg-white rounded-xl shadow-lg text-gray-800 overflow-hidden">
         <div className="p-8 sm:p-10">
 
           {/* INVOICE title at top center */}
