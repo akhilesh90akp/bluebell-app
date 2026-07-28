@@ -7,7 +7,8 @@
  */
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, FileText, CheckCircle2, Settings, Plus, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FilePlus, FileText, CheckCircle2, Settings, Plus, BarChart3, LogOut } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 /** Navigation items displayed in the desktop sidebar */
 const sidebarNav = [
@@ -30,6 +31,7 @@ const mobileNav = [
 /** Main layout wrapper with sidebar, content area, and mobile nav */
 export default function Layout() {
   const navigate = useNavigate();
+  const { logout } = useApp();
 
   return (
     <div className="min-h-[100dvh] bg-bb-bg overflow-x-hidden">
@@ -67,7 +69,14 @@ export default function Layout() {
 
         {/* Version footer */}
         <div className="px-4 py-3 border-t border-bb-sidebar-border">
-          <p className="text-[10px] text-bb-sidebar-muted text-center">Bluebell Event Planners v1.0</p>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs text-bb-sidebar-muted hover:text-white transition-colors cursor-pointer"
+          >
+            <LogOut size={14} />
+            Logout
+          </button>
+          <p className="text-[10px] text-bb-sidebar-muted text-center mt-2">Bluebell Event Planners v1.0</p>
         </div>
       </aside>
 

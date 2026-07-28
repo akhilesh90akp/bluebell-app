@@ -66,19 +66,32 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     size: A4;
   }
 
-  /* Make print document full A4 width */
+  /* Make print document full A4 width - Android Chrome fix */
   .print-doc {
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
-    font-size: 10pt !important;
+    font-size: 9pt !important;
   }
 
-  table { page-break-inside: auto; font-size: 9pt !important; }
+  .print-doc > div {
+    padding: 5mm !important;
+  }
+
+  .print-doc table {
+    font-size: 8pt !important;
+    width: 100% !important;
+  }
+
+  .print-doc h1 {
+    font-size: 14pt !important;
+  }
+
+  table { page-break-inside: auto; }
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
   .print-section { break-inside: avoid; }

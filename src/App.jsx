@@ -4,6 +4,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import Toast from './components/Toast';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -17,7 +18,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 function AppRoutes() {
-  const { user, authLoading } = useApp();
+  const { user, authLoading, toast } = useApp();
 
   // Show loading while checking auth
   if (authLoading) {
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
+      <Toast message={toast.message} type={toast.type} isVisible={toast.visible} />
     </BrowserRouter>
   );
 }

@@ -4,7 +4,7 @@
  * All data is stored in Firestore under the user's UID.
  * Events, settings, and categories sync across all devices.
  */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -20,6 +20,19 @@ export function AppProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loaded, setLoaded] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'success', visible: false });
+  const toastTimer = useRef(null);
+
+  /** Show a toast message that auto-dismisses after 3 seconds */
+  const showToast = useCallback((message, type = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type, visible: true });
+    toastTimer.current = setTimeout(() => {
+      setToast(t => ({ ...t, visible: false }));
+      // Clear message after fade-out animation
+      setTimeout(() => setToast({ message: '', type: 'success', visible: false }), 300);
+    }, 3000);
+  }, []);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -164,6 +177,7 @@ export function AppProvider({ children }) {
       updateSettings,
       addCategory, updateCategory, deleteCategory,
       addItemToCat, removeItemFromCat,
+      toast, showToast,
     }}>
       {children}
     </Ctx.Provider>

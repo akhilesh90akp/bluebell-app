@@ -20,7 +20,7 @@ import { ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package, ChevronDown,
 /** Builds and previews a printable quotation document for an event */
 export default function QuotationGenerator() {
   const { eventId } = useParams();
-  const { events, settings, categories, updateEvent } = useApp();
+  const { events, settings, categories, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
   const event = events.find(e => e.id === eventId);
 
@@ -151,6 +151,7 @@ export default function QuotationGenerator() {
       items: localItems,
       itemPrices: itemPrices,
     });
+    showToast('Quotation saved');
   };
 
   /** Triggers the browser print dialog */

@@ -21,7 +21,7 @@ import {
 
 /** Form page for creating a new event draft */
 export default function NewDraft() {
-  const { categories, addEvent } = useApp();
+  const { categories, addEvent, showToast } = useApp();
   const navigate = useNavigate();
 
   // Form state with all event fields
@@ -89,7 +89,8 @@ export default function NewDraft() {
       items: form.selectedItems,
       notes: form.notes.trim(),
     });
-    navigate('/drafts');
+    showToast('Draft saved successfully');
+    navigate('/drafts', { replace: true });
   };
 
   /** Returns count of selected items belonging to a specific category */

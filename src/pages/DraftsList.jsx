@@ -22,7 +22,7 @@ import {
 
 /** Lists all draft events with search, expand/collapse, and actions */
 export default function DraftsList() {
-  const { events, deleteEvent, updateEvent } = useApp();
+  const { events, deleteEvent, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState(null);
@@ -45,6 +45,7 @@ export default function DraftsList() {
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {
     updateEvent(id, { status: 'confirmed' });
+    showToast('Event confirmed');
   };
 
   /** Executes the delete after modal confirmation */
@@ -52,6 +53,7 @@ export default function DraftsList() {
     if (deleteId) {
       deleteEvent(deleteId);
       setDeleteId(null);
+      showToast('Event deleted');
     }
   };
 

@@ -22,9 +22,10 @@ import {
 
 /** Manages confirmed events with pricing, item addition, and completion */
 export default function ConfirmedEvents() {
-  const { events, categories, updateEvent, deleteEvent } = useApp();
+  const { events, categories, updateEvent, deleteEvent, showToast } = useApp();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'confirmed' | 'completed'
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
   const [priceModal, setPriceModal] = useState(null); // event id for pricing modal
   const [newItem, setNewItem] = useState('');
@@ -32,9 +33,13 @@ export default function ConfirmedEvents() {
   const [expandedId, setExpandedId] = useState(null);
   const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
 
-  // Filter confirmed/completed events by search query
+  // Filter confirmed/completed events by status tab and search query
   const confirmedEvents = events
-    .filter(e => e.status === 'confirmed' || e.status === 'completed')
+    .filter(e => {
+      if (statusFilter === 'confirmed') return e.status === 'confirmed';
+      if (statusFilter === 'completed') return e.status === 'completed';
+      return e.status === 'confirmed' || e.status === 'completed';
+    })
     .filter(e => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -77,11 +82,13 @@ export default function ConfirmedEvents() {
     const total = Object.values(prices).reduce((sum, p) => sum + (p.qty * p.rate), 0);
     updateEvent(priceModal, { itemPrices: prices, totalAmount: total });
     setPriceModal(null);
+    showToast('Quotation saved');
   };
 
   /** Marks an event as completed */
   const markDone = (id) => {
     updateEvent(id, { status: 'completed' });
+    showToast('Event marked as completed');
   };
 
   /** Toggles the expanded/collapsed state of an event card */
@@ -99,6 +106,27 @@ export default function ConfirmedEvents() {
         value={search}
         onChange={e => setSearch(e.target.value)}
       />
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-1 bg-bb-input rounded-lg p-1">
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'confirmed', label: 'Confirmed' },
+          { key: 'completed', label: 'Completed' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${
+              statusFilter === tab.key
+                ? 'bg-bb-card text-bb-text shadow-sm'
+                : 'text-bb-muted hover:text-bb-text'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {confirmedEvents.length === 0 ? (
         <Card>
@@ -345,7 +373,7 @@ export default function ConfirmedEvents() {
         <p className="text-bb-muted mb-4">Are you sure you want to delete this event? This action cannot be undone.</p>
         <div className="flex gap-2 justify-end">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => { deleteEvent(deleteId); setDeleteId(null); }}>Delete</Button>
+          <Button variant="danger" onClick={() => { deleteEvent(deleteId); setDeleteId(null); showToast('Event deleted'); }}>Delete</Button>
         </div>
       </Modal>
     </div>

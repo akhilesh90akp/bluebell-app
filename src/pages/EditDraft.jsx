@@ -22,7 +22,7 @@ import {
 /** Form page for editing an existing event draft */
 export default function EditDraft() {
   const { eventId } = useParams();
-  const { events, categories, updateEvent } = useApp();
+  const { events, categories, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
 
   const event = events.find(e => e.id === eventId);
@@ -122,7 +122,8 @@ export default function EditDraft() {
       items: form.selectedItems,
       notes: form.notes.trim(),
     });
-    navigate(-1);
+    showToast('Changes saved');
+    navigate('/drafts', { replace: true });
   };
 
   /** Returns count of selected items belonging to a specific category */
