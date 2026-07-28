@@ -1,14 +1,13 @@
 /**
  * Firebase Configuration & Initialization
- * Connects the app to Bluebell Event Firebase project
  */
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCGtwV4ePNuGIdzULROXZWPACdImEzuA-0",
-  authDomain: "bluebell-event.firebaseapp.com",
+  authDomain: "bluebell-event.netlify.app",
   projectId: "bluebell-event",
   storageBucket: "bluebell-event.firebasestorage.app",
   messagingSenderId: "282114023514",
@@ -18,6 +17,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+
+// Ensure auth persists across page reloads and browser restarts
+setPersistence(auth, browserLocalPersistence);
+
 export const db = getFirestore(app);
 export default app;

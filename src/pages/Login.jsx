@@ -1,6 +1,5 @@
 /**
  * Login Page - Google sign-in
- * Always uses signInWithPopup - simplest approach that works everywhere
  */
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
@@ -11,26 +10,23 @@ export default function Login() {
   const [error, setError] = useState('');
 
   const handleGoogleLogin = async () => {
-    // If running as installed PWA, popups won't work - open in browser instead
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                  (window.navigator && window.navigator.standalone === true);
-    
-    if (isPWA) {
-      // Open the URL in a real browser window where popup login works
-      window.open('https://bluebell-event.netlify.app', '_blank');
-      return;
-    }
-
     setLoading(true);
     setError('');
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      console.log('Login success:', result.user.email);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      // Success - onAuthStateChanged in AppContext will detect the user
+      // and re-render the app showing the dashboard
     } catch (err) {
-      console.error('Login error code:', err.code);
-      console.error('Login error message:', err.message);
-      setError(`Error: ${err.code || err.message}`);
+      console.error('Login failed:', err.code, err.message);
+      if (err.code === 'auth/popup-closed-by-user') {
+        // User closed the popup - not an error
+        setError('');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup blocked by browser. Allow popups for this site.');
+      } else {
+        setError(err.code ? `${err.code}: ${err.message}` : 'Login failed. Try again.');
+      }
       setLoading(false);
     }
   };
@@ -59,17 +55,10 @@ export default function Login() {
         </button>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-50 rounded-lg">
+          <div className="mt-4 p-3 bg-red-50 rounded-lg text-left">
             <p className="text-xs text-red-600 break-all">{error}</p>
           </div>
         )}
-
-        <p className="text-[11px] text-gray-400 mt-6">
-          If button doesn't respond, open in Chrome browser:
-        </p>
-        <p className="text-[11px] text-bb-accent font-medium mt-1 select-all">
-          bluebell-event.netlify.app
-        </p>
       </div>
     </div>
   );
