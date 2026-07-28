@@ -53,47 +53,54 @@ export function AppProvider({ children }) {
       return;
     }
 
-    const loadData = async () => {
-      try {
-        // Load events (real-time listener)
-        const eventsRef = collection(db, 'users', user.uid, 'events');
-        const unsubEvents = onSnapshot(eventsRef, (snapshot) => {
-          const evs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          setEvents(evs);
-        });
+    console.log('User logged in:', user.email, user.uid);
 
-        // Load settings
+    // Real-time listener for events
+    const eventsRef = collection(db, 'users', user.uid, 'events');
+    const unsubEvents = onSnapshot(eventsRef, (snapshot) => {
+      const evs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      console.log('Events loaded from Firestore:', evs.length);
+      setEvents(evs);
+      setLoaded(true);
+    }, (err) => {
+      console.error('Firestore events listener error:', err);
+      setLoaded(true);
+    });
+
+    // Load settings and categories (one-time read)
+    const loadConfig = async () => {
+      try {
         const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'config', 'settings'));
         if (settingsDoc.exists()) {
           setSettings({ ...DEFAULT_SETTINGS, ...settingsDoc.data() });
         }
-
-        // Load categories
         const catsDoc = await getDoc(doc(db, 'users', user.uid, 'config', 'categories'));
         if (catsDoc.exists()) {
           setCategories(catsDoc.data().list || DEFAULT_CATEGORIES);
         }
-
-        setLoaded(true);
-        return () => unsubEvents();
       } catch (err) {
-        console.error('Error loading data:', err);
-        setLoaded(true);
+        console.error('Error loading config:', err);
       }
     };
+    loadConfig();
 
-    loadData();
+    // Cleanup: unsubscribe from events listener
+    return () => unsubEvents();
   }, [user]);
 
   // === Event Operations ===
 
   const addEvent = async (data) => {
+    if (!user) { console.error('No user - cannot save'); return null; }
     const id = genId();
     const ev = { ...data, status: 'draft', createdAt: new Date().toISOString() };
     try {
       await setDoc(doc(db, 'users', user.uid, 'events', id), ev);
+      console.log('Event saved to Firestore:', id);
+      showToast('Draft saved successfully');
     } catch (err) {
       console.error('Error adding event:', err);
+      showToast('Failed to save: ' + err.message, 'error');
     }
     return { id, ...ev };
   };
