@@ -1,9 +1,10 @@
 /**
- * Login Page - Google sign-in for Bluebell team
- * Uses signInWithPopup with fallback — works on all platforms
+ * Login Page - Google sign-in
+ * Uses signInWithRedirect for mobile/PWA (only reliable method)
+ * Uses signInWithPopup for desktop browsers
  */
 import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
 export default function Login() {
@@ -13,19 +14,23 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+
+    // Check if running as installed PWA or on mobile
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     try {
-      // signInWithPopup works on all platforms including Android PWA
-      // when the browser allows it
-      await signInWithPopup(auth, googleProvider);
+      if (isStandalone || isMobile) {
+        // Redirect is the ONLY reliable method for PWA/mobile
+        await signInWithRedirect(auth, googleProvider);
+        // Page will redirect away - no code runs after this
+      } else {
+        // Desktop: popup works fine
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err) {
       console.error('Login error:', err);
-      if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked. Please allow popups for this site and try again.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('Sign-in was cancelled. Please try again.');
-      } else {
-        setError(err.message || 'Login failed. Please try again.');
-      }
+      setError(err.message || 'Login failed. Please try again.');
       setLoading(false);
     }
   };
@@ -33,12 +38,10 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] bg-bb-sidebar flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center">
-        {/* Logo */}
         <img src="/logo-gold.png" alt="Bluebell" className="h-14 mx-auto mb-4 object-contain" />
         <h1 className="text-xl font-bold text-gray-900 mb-1">Welcome to Bluebell</h1>
         <p className="text-sm text-gray-500 mb-8">Event Planners LLP</p>
 
-        {/* Google Sign In Button */}
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
@@ -51,25 +54,11 @@ export default function Login() {
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
           <span className="text-sm font-medium text-gray-700">
-            {loading ? 'Signing in...' : 'Sign in with Google'}
+            {loading ? 'Redirecting...' : 'Sign in with Google'}
           </span>
         </button>
 
-        {error && (
-          <p className="text-sm text-red-500 mt-4">{error}</p>
-        )}
-
-        <p className="text-xs text-gray-400 mt-6">
-          Tip: If sign-in doesn't work, open this link in Chrome browser instead of the installed app.
-        </p>
-        <a
-          href="https://bluebell-event.netlify.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-bb-accent underline mt-2 inline-block"
-        >
-          Open in browser
-        </a>
+        {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
       </div>
     </div>
   );
