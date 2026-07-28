@@ -1,33 +1,62 @@
 /**
  * Login Page - Google sign-in
+ * Safari (iOS): uses signInWithRedirect (popups blocked)
+ * Chrome (Android/Desktop): uses signInWithPopup
  */
-import React, { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Check redirect result on load (for Safari/iOS redirect flow)
+  useEffect(() => {
+    setLoading(true);
+    getRedirectResult(auth)
+      .then((result) => {
+        if (!result) setLoading(false); // No redirect result, show login button
+      })
+      .catch((err) => {
+        console.error('Redirect result error:', err);
+        setError(err.message || 'Login failed');
+        setLoading(false);
+      });
+  }, []);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+    const provider = new GoogleAuthProvider();
+
+    // Detect Safari (iOS or Mac)
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // Success - onAuthStateChanged in AppContext will detect the user
-      // and re-render the app showing the dashboard
-    } catch (err) {
-      console.error('Login failed:', err.code, err.message);
-      if (err.code === 'auth/popup-closed-by-user') {
-        // User closed the popup - not an error
-        setError('');
-      } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup blocked by browser. Allow popups for this site.');
+      if (isSafari || isIOS) {
+        // Safari/iOS: redirect is the only method that works reliably
+        await signInWithRedirect(auth, provider);
+        // Page navigates away — nothing runs after this
       } else {
-        setError(err.code ? `${err.code}: ${err.message}` : 'Login failed. Try again.');
+        // Chrome/Android/Desktop: popup works
+        await signInWithPopup(auth, provider);
       }
-      setLoading(false);
+    } catch (err) {
+      console.error('Login error:', err.code, err.message);
+      // If popup fails, try redirect as fallback
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (e) {
+          setError(e.message || 'Login failed');
+          setLoading(false);
+        }
+      } else {
+        setError(err.code ? `${err.code}` : 'Login failed');
+        setLoading(false);
+      }
     }
   };
 
@@ -55,8 +84,8 @@ export default function Login() {
         </button>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-50 rounded-lg text-left">
-            <p className="text-xs text-red-600 break-all">{error}</p>
+          <div className="mt-4 p-3 bg-red-50 rounded-lg">
+            <p className="text-xs text-red-600">{error}</p>
           </div>
         )}
       </div>
