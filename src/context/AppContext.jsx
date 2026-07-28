@@ -5,7 +5,7 @@
  * Events, settings, and categories sync across all devices.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { DEFAULT_SETTINGS, DEFAULT_CATEGORIES } from '../constants/data';
@@ -34,13 +34,8 @@ export function AppProvider({ children }) {
     }, 3000);
   }, []);
 
-  // Listen for auth state changes + handle redirect result
+  // Listen for auth state changes
   useEffect(() => {
-    // Handle redirect result (for mobile/PWA sign-in)
-    getRedirectResult(auth).catch((err) => {
-      console.error('Redirect result error:', err);
-    });
-
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
