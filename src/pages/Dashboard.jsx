@@ -14,7 +14,7 @@ import Badge from '../components/Badge';
 import { formatCurrency, formatDateReadable, daysUntil, telLink } from '../utils/helpers';
 import {
   FileText, CheckCircle, PartyPopper, IndianRupee,
-  Plus, List, Settings, Phone, CalendarDays, MapPin,
+  Plus, List, Settings, Phone, CalendarDays, MapPin, BarChart3,
 } from 'lucide-react';
 
 /** Main dashboard view with stats, quick actions, and upcoming events */
@@ -65,6 +65,7 @@ export default function Dashboard() {
         <Button icon={Plus} onClick={() => navigate('/new')}>New Draft</Button>
         <Button icon={List} variant="secondary" onClick={() => navigate('/drafts')}>Drafts</Button>
         <Button icon={CheckCircle} variant="secondary" onClick={() => navigate('/confirmed')}>Confirmed</Button>
+        <Button icon={BarChart3} variant="secondary" onClick={() => navigate('/reports')}>Reports</Button>
         <Button icon={Settings} variant="ghost" onClick={() => navigate('/settings')}>Settings</Button>
       </div>
 

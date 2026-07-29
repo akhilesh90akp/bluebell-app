@@ -336,44 +336,56 @@ export default function QuotationGenerator() {
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px'}}>
-            <div style={{flexShrink: 0}}>
-              <img src="/logo-purple-horizontal.svg" alt="Bluebell" style={{height: '48px', width: 'auto'}} />
-            </div>
-            <div style={{textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
-              <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
-              <p style={{margin: '0 0 1px'}}>Event Planners LLP</p>
-              <p style={{margin: '0 0 1px'}}>297/6, Keerikkattil, Karukappilly PO,</p>
-              <p style={{margin: '0 0 1px'}}>Kolenchery, Ernakulam, Kerala, 682311</p>
-              <p style={{margin: '0 0 1px'}}>Ph: {settings.phone}</p>
-              {settings.gstin && <p style={{margin: 0}}>GSTIN: {settings.gstin}</p>}
-            </div>
-          </div>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '24px'}}>
+            <tbody>
+              <tr>
+                <td style={{verticalAlign: 'top', width: '50%'}}>
+                  <img src="/logo-purple-horizontal.svg" alt="Bluebell" style={{height: '48px', width: 'auto'}} />
+                </td>
+                <td style={{verticalAlign: 'top', width: '50%', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
+                  <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
+                  <p style={{margin: '0 0 1px'}}>Event Planners LLP</p>
+                  <p style={{margin: '0 0 1px'}}>297/6, Keerikkattil, Karukappilly PO,</p>
+                  <p style={{margin: '0 0 1px'}}>Kolenchery, Ernakulam, Kerala, 682311</p>
+                  <p style={{margin: '0 0 1px'}}>Ph: {settings.phone}</p>
+                  {settings.gstin && <p style={{margin: 0}}>GSTIN: {settings.gstin}</p>}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           {/* Thin separator */}
           <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '24px'}} />
 
           {/* From / To - side by side */}
-          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px'}}>
-            {/* To (Client) */}
-            <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
-              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bill To / Client</p>
-              <p style={{fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 4px'}}>{event.clientName}</p>
-              {event.clientPhone && <p style={{fontSize: '11px', color: '#4b5563', margin: '0 0 2px'}}>Phone: {event.clientPhone}</p>}
-              {event.clientAddress && <p style={{fontSize: '11px', color: '#4b5563', marginTop: '4px'}}>{event.clientAddress}</p>}
-            </div>
-            {/* Event Details */}
-            <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
-              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
-              <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
-                {event.date && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(event.date)}</p>}
-                {event.eventLocation && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.eventLocation}</p>}
-                <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
-                <p style={{margin: 0}}><span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days</p>
-              </div>
-            </div>
-          </div>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '32px'}}>
+            <tbody>
+              <tr>
+                {/* To (Client) */}
+                <td style={{verticalAlign: 'top', width: '50%', paddingRight: '12px'}}>
+                  <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+                    <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bill To / Client</p>
+                    <p style={{fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 4px'}}>{event.clientName}</p>
+                    {event.clientPhone && <p style={{fontSize: '11px', color: '#4b5563', margin: '0 0 2px'}}>Phone: {event.clientPhone}</p>}
+                    {event.clientAddress && <p style={{fontSize: '11px', color: '#4b5563', marginTop: '4px'}}>{event.clientAddress}</p>}
+                  </div>
+                </td>
+                {/* Event Details */}
+                <td style={{verticalAlign: 'top', width: '50%', paddingLeft: '12px'}}>
+                  <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+                    <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
+                    <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                      {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
+                      {event.date && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(event.date)}</p>}
+                      {event.eventLocation && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.eventLocation}</p>}
+                      <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
+                      <p style={{margin: 0}}><span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           {/* Items grouped by Category */}
           <div style={{marginBottom: '32px'}}>
@@ -424,12 +436,18 @@ export default function QuotationGenerator() {
                   </table>
 
                   {/* Section Subtotal */}
-                  <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '4px'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '8px 12px', borderRadius: '4px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
-                      <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase'}}>Section Subtotal</span>
-                      <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
-                    </div>
-                  </div>
+                  <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '4px'}}>
+                    <tbody>
+                      <tr>
+                        <td style={{textAlign: 'right'}}>
+                          <span style={{padding: '8px 12px', borderRadius: '4px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
+                            <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Section Subtotal</span>
+                            <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               );
             })}
@@ -449,38 +467,50 @@ export default function QuotationGenerator() {
                       return sum + (p.qty * p.rate);
                     }, 0);
                     return (
-                      <div key={group.id} style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
-                        <span style={{color: '#4b5563'}}>{group.label}</span>
-                        <span style={{color: '#1f2937', fontWeight: '500'}}>{formatCurrency(sectionTotal)}</span>
-                      </div>
+                      <table key={group.id} style={{width: '100%', borderCollapse: 'collapse'}}>
+                        <tbody>
+                          <tr>
+                            <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 0'}}>{group.label}</td>
+                            <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(sectionTotal)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     );
                   })}
 
                   <div style={{borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
-                      <span style={{color: '#6b7280'}}>Subtotal</span>
-                      <span style={{color: '#1f2937', fontWeight: '500'}}>{formatCurrency(subtotal)}</span>
-                    </div>
-                    {gstEnabled && (
-                      <>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
-                          <span style={{color: '#6b7280'}}>CGST ({Number(gstRate)/2}%)</span>
-                          <span style={{color: '#1f2937'}}>{formatCurrency(gstData.cgst)}</span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
-                          <span style={{color: '#6b7280'}}>SGST ({Number(gstRate)/2}%)</span>
-                          <span style={{color: '#1f2937'}}>{formatCurrency(gstData.sgst)}</span>
-                        </div>
-                      </>
-                    )}
+                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                      <tbody>
+                        <tr>
+                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>Subtotal</td>
+                          <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(subtotal)}</td>
+                        </tr>
+                        {gstEnabled && (
+                          <>
+                            <tr>
+                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>CGST ({Number(gstRate)/2}%)</td>
+                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(gstData.cgst)}</td>
+                            </tr>
+                            <tr>
+                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>SGST ({Number(gstRate)/2}%)</td>
+                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(gstData.sgst)}</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
 
                   {/* Grand total with accent border */}
                   <div style={{paddingTop: '8px', marginTop: '8px', borderTop: '2px solid #652D90'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{fontSize: '17px', fontWeight: 'bold', color: '#111827'}}>GRAND TOTAL</span>
-                      <span style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90'}}>{formatCurrency(gstData.total)}</span>
-                    </div>
+                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                      <tbody>
+                        <tr>
+                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#111827'}}>GRAND TOTAL</td>
+                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90', textAlign: 'right'}}>{formatCurrency(gstData.total)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -498,22 +528,38 @@ export default function QuotationGenerator() {
           <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '24px', marginBottom: '24px'}}>
             <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', marginBottom: '12px'}}>Terms & Conditions</p>
             <ul style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: 0, padding: 0, listStyle: 'none'}}>
-              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
-                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
-                This quotation is valid for {validityDays} days from the date of issue.
+              <li style={{marginBottom: '6px'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <tbody><tr>
+                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                    <td style={{verticalAlign: 'top'}}>This quotation is valid for {validityDays} days from the date of issue.</td>
+                  </tr></tbody>
+                </table>
               </li>
-              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
-                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
-                Prices are subject to change after the validity period.
+              <li style={{marginBottom: '6px'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <tbody><tr>
+                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                    <td style={{verticalAlign: 'top'}}>Prices are subject to change after the validity period.</td>
+                  </tr></tbody>
+                </table>
               </li>
-              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
-                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
-                50% advance payment required to confirm booking.
+              <li style={{marginBottom: '6px'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <tbody><tr>
+                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                    <td style={{verticalAlign: 'top'}}>50% advance payment required to confirm booking.</td>
+                  </tr></tbody>
+                </table>
               </li>
               {settings.termsAndConditions?.map((t, i) => (
-                <li key={i} style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
-                  <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
-                  {t}
+                <li key={i} style={{marginBottom: '6px'}}>
+                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                    <tbody><tr>
+                      <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                      <td style={{verticalAlign: 'top'}}>{t}</td>
+                    </tr></tbody>
+                  </table>
                 </li>
               ))}
             </ul>
