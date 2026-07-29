@@ -326,57 +326,57 @@ export default function QuotationGenerator() {
       </Modal>
 
       {/* === Quotation Preview - printable document === */}
-      <div ref={pdfRef} className="bg-white rounded-xl shadow-lg text-gray-800 overflow-x-auto print-doc">
-        <div className="p-6 sm:p-8 print:p-10">
+      <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
+        <div style={{padding: '32px'}}>
 
           {/* QUOTATION title at top center */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-extrabold tracking-[0.15em] uppercase" style={{ color: '#652D90' }}>QUOTATION</h1>
-            <div className="h-[2px] w-20 mx-auto mt-2" style={{ backgroundColor: '#652D90' }} />
+          <div style={{textAlign: 'center', marginBottom: '24px'}}>
+            <h1 style={{fontSize: '24px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#652D90', margin: 0}}>QUOTATION</h1>
+            <div style={{height: '2px', width: '80px', margin: '8px auto 0', backgroundColor: '#652D90'}} />
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <div className="flex items-start justify-between mb-6 print:mb-8">
-            <div className="flex-shrink-0">
-              <img src="/logo-purple-horizontal.svg" alt="Bluebell Event Planners" className="h-12 sm:h-14 w-auto object-contain" />
+          <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px'}}>
+            <div style={{flexShrink: 0}}>
+              <img src="/logo-purple-horizontal.svg" alt="Bluebell" style={{height: '48px', width: 'auto'}} />
             </div>
-            <div className="text-right text-xs text-gray-700 leading-[1.6]">
-              <p className="font-bold text-sm text-gray-900">BLUE BELL</p>
-              <p>Event Planners LLP</p>
-              <p>297/6, Keerikkattil, Karukappilly PO,</p>
-              <p>Kolenchery, Ernakulam, Kerala, 682311</p>
-              <p>Ph: {settings.phone}</p>
-              {settings.gstin && <p>GSTIN: {settings.gstin}</p>}
+            <div style={{textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
+              <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
+              <p style={{margin: '0 0 1px'}}>Event Planners LLP</p>
+              <p style={{margin: '0 0 1px'}}>297/6, Keerikkattil, Karukappilly PO,</p>
+              <p style={{margin: '0 0 1px'}}>Kolenchery, Ernakulam, Kerala, 682311</p>
+              <p style={{margin: '0 0 1px'}}>Ph: {settings.phone}</p>
+              {settings.gstin && <p style={{margin: 0}}>GSTIN: {settings.gstin}</p>}
             </div>
           </div>
 
           {/* Thin separator */}
-          <div className="h-px bg-gray-200 mb-6" />
+          <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '24px'}} />
 
           {/* From / To - side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 print:grid-cols-2">
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px'}}>
             {/* To (Client) */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Bill To / Client</p>
-              <p className="text-sm font-semibold text-gray-900">{event.clientName}</p>
-              {event.clientPhone && <p className="text-xs text-gray-600">Phone: {event.clientPhone}</p>}
-              {event.clientAddress && <p className="text-xs text-gray-600 mt-1">{event.clientAddress}</p>}
+            <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bill To / Client</p>
+              <p style={{fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 4px'}}>{event.clientName}</p>
+              {event.clientPhone && <p style={{fontSize: '11px', color: '#4b5563', margin: '0 0 2px'}}>Phone: {event.clientPhone}</p>}
+              {event.clientAddress && <p style={{fontSize: '11px', color: '#4b5563', marginTop: '4px'}}>{event.clientAddress}</p>}
             </div>
             {/* Event Details */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Event Details</p>
-              <div className="text-xs text-gray-600 space-y-1">
-                {event.eventType && <p><span className="font-medium text-gray-700">Event:</span> {event.eventType}</p>}
-                {event.date && <p><span className="font-medium text-gray-700">Date:</span> {formatDateReadable(event.date)}</p>}
-                {event.eventLocation && <p><span className="font-medium text-gray-700">Venue:</span> {event.eventLocation}</p>}
-                <p><span className="font-medium text-gray-700">Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
-                <p><span className="font-medium text-gray-700">Valid for:</span> {validityDays} days</p>
+            <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
+              <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
+                {event.date && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(event.date)}</p>}
+                {event.eventLocation && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.eventLocation}</p>}
+                <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
+                <p style={{margin: 0}}><span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days</p>
               </div>
             </div>
           </div>
 
           {/* Items grouped by Category */}
-          <div className="mb-8 space-y-6">
+          <div style={{marginBottom: '32px'}}>
             {groupedItems.map((group, groupIdx) => {
               const sectionSubtotal = group.items.reduce((sum, item) => {
                 const p = itemPrices[item] || { qty: 1, rate: 0 };
@@ -386,24 +386,24 @@ export default function QuotationGenerator() {
               let slNo = 0;
 
               return (
-                <div key={group.id} className="print:break-inside-avoid">
+                <div key={group.id} style={{marginBottom: '24px', pageBreakInside: 'avoid'}}>
                   {/* Section Header */}
-                  <div className="mb-3">
-                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide" style={{ color: '#652D90' }}>
+                  <div style={{marginBottom: '12px'}}>
+                    <h3 style={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90', margin: 0}}>
                       {group.label}
                     </h3>
-                    <div className="h-[1px] mt-1" style={{ backgroundColor: '#652D9030' }} />
+                    <div style={{height: '1px', marginTop: '4px', backgroundColor: 'rgba(101, 45, 144, 0.19)'}} />
                   </div>
 
                   {/* Section Table */}
-                  <table className="w-full text-sm">
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
                     <thead>
-                      <tr style={{ backgroundColor: '#652D9010' }}>
-                        <th className="py-2 px-3 text-left font-semibold text-gray-600 w-10 border-b" style={{ borderBottomColor: '#652D9050' }}>Sl.</th>
-                        <th className="py-2 px-3 text-left font-semibold text-gray-600 border-b" style={{ borderBottomColor: '#652D9050' }}>Particulars</th>
-                        <th className="py-2 px-3 text-center font-semibold text-gray-600 w-14 border-b" style={{ borderBottomColor: '#652D9050' }}>Qty</th>
-                        <th className="py-2 px-3 text-right font-semibold text-gray-600 w-24 border-b" style={{ borderBottomColor: '#652D9050' }}>Rate (₹)</th>
-                        <th className="py-2 px-3 text-right font-semibold text-gray-600 w-28 border-b" style={{ borderBottomColor: '#652D9050' }}>Amount (₹)</th>
+                      <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.06)'}}>
+                        <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', width: '40px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Sl.</th>
+                        <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Particulars</th>
+                        <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', width: '50px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Qty</th>
+                        <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', width: '90px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Rate (₹)</th>
+                        <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', width: '100px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Amount (₹)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -411,12 +411,12 @@ export default function QuotationGenerator() {
                         slNo++;
                         const p = itemPrices[item] || { qty: 1, rate: 0 };
                         return (
-                          <tr key={item} className="border-b border-gray-100">
-                            <td className="py-2.5 px-3 text-gray-400">{slNo}</td>
-                            <td className="py-2.5 px-3 text-gray-800">{item}</td>
-                            <td className="py-2.5 px-3 text-center text-gray-700">{p.qty}</td>
-                            <td className="py-2.5 px-3 text-right text-gray-700">{formatCurrency(p.rate)}</td>
-                            <td className="py-2.5 px-3 text-right font-medium text-gray-900">{formatCurrency(p.qty * p.rate)}</td>
+                          <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
+                            <td style={{padding: '10px 12px', color: '#9ca3af'}}>{slNo}</td>
+                            <td style={{padding: '10px 12px', color: '#1f2937'}}>{item}</td>
+                            <td style={{padding: '10px 12px', textAlign: 'center', color: '#374151'}}>{p.qty}</td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#374151'}}>{formatCurrency(p.rate)}</td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '500', color: '#111827'}}>{formatCurrency(p.qty * p.rate)}</td>
                           </tr>
                         );
                       })}
@@ -424,10 +424,10 @@ export default function QuotationGenerator() {
                   </table>
 
                   {/* Section Subtotal */}
-                  <div className="flex justify-end mt-1">
-                    <div className="flex items-center gap-4 px-3 py-2 rounded" style={{ backgroundColor: '#652D9008' }}>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Section Subtotal</span>
-                      <span className="text-sm font-bold text-gray-800">{formatCurrency(sectionSubtotal)}</span>
+                  <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '4px'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '8px 12px', borderRadius: '4px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
+                      <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase'}}>Section Subtotal</span>
+                      <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -437,49 +437,49 @@ export default function QuotationGenerator() {
 
           {/* Summary Box - All section totals + Grand Total */}
           {groupedItems.length > 0 && (
-            <div className="mb-8">
-              <div className="border rounded-lg overflow-hidden" style={{ borderColor: '#652D9030' }}>
-                <div className="px-4 py-2" style={{ backgroundColor: '#652D9015' }}>
-                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#652D90' }}>Summary</p>
+            <div style={{marginBottom: '32px'}}>
+              <div style={{border: '1px solid rgba(101, 45, 144, 0.19)', borderRadius: '8px', overflow: 'hidden'}}>
+                <div style={{padding: '8px 16px', backgroundColor: 'rgba(101, 45, 144, 0.08)'}}>
+                  <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', margin: 0}}>Summary</p>
                 </div>
-                <div className="px-4 py-3 space-y-2">
+                <div style={{padding: '12px 16px'}}>
                   {groupedItems.map((group) => {
                     const sectionTotal = group.items.reduce((sum, item) => {
                       const p = itemPrices[item] || { qty: 1, rate: 0 };
                       return sum + (p.qty * p.rate);
                     }, 0);
                     return (
-                      <div key={group.id} className="flex justify-between text-sm py-1">
-                        <span className="text-gray-600">{group.label}</span>
-                        <span className="text-gray-800 font-medium">{formatCurrency(sectionTotal)}</span>
+                      <div key={group.id} style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
+                        <span style={{color: '#4b5563'}}>{group.label}</span>
+                        <span style={{color: '#1f2937', fontWeight: '500'}}>{formatCurrency(sectionTotal)}</span>
                       </div>
                     );
                   })}
 
-                  <div className="border-t border-gray-200 pt-2 mt-2">
-                    <div className="flex justify-between text-sm py-1">
-                      <span className="text-gray-500">Subtotal</span>
-                      <span className="text-gray-800 font-medium">{formatCurrency(subtotal)}</span>
+                  <div style={{borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
+                      <span style={{color: '#6b7280'}}>Subtotal</span>
+                      <span style={{color: '#1f2937', fontWeight: '500'}}>{formatCurrency(subtotal)}</span>
                     </div>
                     {gstEnabled && (
                       <>
-                        <div className="flex justify-between text-sm py-1">
-                          <span className="text-gray-500">CGST ({Number(gstRate)/2}%)</span>
-                          <span className="text-gray-800">{formatCurrency(gstData.cgst)}</span>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
+                          <span style={{color: '#6b7280'}}>CGST ({Number(gstRate)/2}%)</span>
+                          <span style={{color: '#1f2937'}}>{formatCurrency(gstData.cgst)}</span>
                         </div>
-                        <div className="flex justify-between text-sm py-1">
-                          <span className="text-gray-500">SGST ({Number(gstRate)/2}%)</span>
-                          <span className="text-gray-800">{formatCurrency(gstData.sgst)}</span>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '4px 0'}}>
+                          <span style={{color: '#6b7280'}}>SGST ({Number(gstRate)/2}%)</span>
+                          <span style={{color: '#1f2937'}}>{formatCurrency(gstData.sgst)}</span>
                         </div>
                       </>
                     )}
                   </div>
 
                   {/* Grand total with accent border */}
-                  <div className="pt-2 mt-2" style={{ borderTop: '2px solid #652D90' }}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-gray-900">GRAND TOTAL</span>
-                      <span className="text-lg font-bold" style={{ color: '#652D90' }}>{formatCurrency(gstData.total)}</span>
+                  <div style={{paddingTop: '8px', marginTop: '8px', borderTop: '2px solid #652D90'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontSize: '17px', fontWeight: 'bold', color: '#111827'}}>GRAND TOTAL</span>
+                      <span style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90'}}>{formatCurrency(gstData.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -489,30 +489,30 @@ export default function QuotationGenerator() {
 
           {/* Fallback if no grouped items (empty state) */}
           {groupedItems.length === 0 && (
-            <div className="mb-8 text-center py-6 text-gray-400 text-sm italic">
+            <div style={{marginBottom: '32px', textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '13px', fontStyle: 'italic'}}>
               No items added to this quotation yet.
             </div>
           )}
 
           {/* Terms & Conditions */}
-          <div className="border-t border-gray-100 pt-6 mb-6">
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#652D90' }}>Terms & Conditions</p>
-            <ul className="text-xs text-gray-600 space-y-1.5 leading-relaxed">
-              <li className="flex items-start gap-2">
-                <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#652D90' }} />
+          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '24px', marginBottom: '24px'}}>
+            <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', marginBottom: '12px'}}>Terms & Conditions</p>
+            <ul style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: 0, padding: 0, listStyle: 'none'}}>
+              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
+                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
                 This quotation is valid for {validityDays} days from the date of issue.
               </li>
-              <li className="flex items-start gap-2">
-                <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#652D90' }} />
+              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
+                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
                 Prices are subject to change after the validity period.
               </li>
-              <li className="flex items-start gap-2">
-                <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#652D90' }} />
+              <li style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
+                <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
                 50% advance payment required to confirm booking.
               </li>
               {settings.termsAndConditions?.map((t, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#652D90' }} />
+                <li key={i} style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px'}}>
+                  <span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', flexShrink: 0, backgroundColor: '#652D90'}} />
                   {t}
                 </li>
               ))}
@@ -520,16 +520,16 @@ export default function QuotationGenerator() {
           </div>
 
           {/* Validity Note */}
-          <div className="text-center py-3 mb-4 rounded-lg" style={{ backgroundColor: '#652D9008' }}>
-            <p className="text-xs text-gray-500 italic">
-              This quotation is valid for <span className="font-semibold text-gray-700">{validityDays} days</span> from the date of issue.
+          <div style={{textAlign: 'center', padding: '12px 0', marginBottom: '16px', borderRadius: '8px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
+            <p style={{fontSize: '11px', color: '#6b7280', fontStyle: 'italic', margin: 0}}>
+              This quotation is valid for <span style={{fontWeight: '600', color: '#374151'}}>{validityDays} days</span> from the date of issue.
             </p>
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 pt-4 text-center">
-            <p className="text-sm font-semibold text-gray-700">{settings.companyName}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{settings.phone}{settings.email ? ` | ${settings.email}` : ''}</p>
+          <div style={{borderTop: '1px solid #e5e7eb', paddingTop: '16px', textAlign: 'center'}}>
+            <p style={{fontSize: '13px', fontWeight: '600', color: '#374151', margin: '0 0 4px'}}>{settings.companyName}</p>
+            <p style={{fontSize: '11px', color: '#6b7280', margin: 0}}>{settings.phone}{settings.email ? ` | ${settings.email}` : ''}</p>
           </div>
         </div>
       </div>

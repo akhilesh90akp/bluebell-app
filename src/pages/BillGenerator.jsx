@@ -136,78 +136,78 @@ export default function BillGenerator() {
       </div>
 
       {/* === Invoice Preview - printable document === */}
-      <div ref={pdfRef} className="bg-white rounded-xl shadow-lg text-gray-800 overflow-x-auto print-doc">
-        <div className="p-8 sm:p-10">
+      <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
+        <div style={{padding: '32px'}}>
 
           {/* INVOICE title at top center */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-extrabold tracking-[0.15em] uppercase text-gray-900">INVOICE</h1>
-            <div className="h-[2px] w-20 mx-auto mt-2 bg-gray-800" />
+          <div style={{textAlign: 'center', marginBottom: '24px'}}>
+            <h1 style={{fontSize: '24px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#111827', margin: 0}}>INVOICE</h1>
+            <div style={{height: '2px', width: '80px', margin: '8px auto 0', backgroundColor: '#111827'}} />
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <div className="flex items-start justify-between mb-8">
-            <div className="flex-shrink-0">
-              <img src="/logo-purple-horizontal.svg" alt="Bluebell Event Planners" className="h-12 sm:h-14 w-auto object-contain" />
+          <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '32px'}}>
+            <div style={{flexShrink: 0}}>
+              <img src="/logo-purple-horizontal.svg" alt="Bluebell" style={{height: '48px', width: 'auto'}} />
             </div>
-            <div className="text-right text-xs text-gray-700 leading-[1.6]">
-              <p className="font-bold text-sm text-gray-900">BLUE BELL</p>
-              <p>Event Planners LLP</p>
-              <p>297/6, Keerikkattil, Karukappilly PO,</p>
-              <p>Kolenchery, Ernakulam, Kerala, 682311</p>
-              <p>Ph: {settings.phone}</p>
-              {settings.gstin && <p>GSTIN/UIN: {settings.gstin}</p>}
+            <div style={{textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
+              <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
+              <p style={{margin: '0 0 1px'}}>Event Planners LLP</p>
+              <p style={{margin: '0 0 1px'}}>297/6, Keerikkattil, Karukappilly PO,</p>
+              <p style={{margin: '0 0 1px'}}>Kolenchery, Ernakulam, Kerala, 682311</p>
+              <p style={{margin: '0 0 1px'}}>Ph: {settings.phone}</p>
+              {settings.gstin && <p style={{margin: 0}}>GSTIN/UIN: {settings.gstin}</p>}
             </div>
           </div>
 
           {/* Thin separator */}
-          <div className="border-t border-gray-200 mb-6" />
+          <div style={{borderTop: '1px solid #e5e7eb', marginBottom: '24px'}} />
 
           {/* Invoice details row */}
-          <div className="flex justify-between items-start mb-8">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px'}}>
             {/* Bill To */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Bill To</p>
-              <p className="text-base font-semibold text-gray-900">{billToName}</p>
-              {billToAddress && <p className="text-sm text-gray-600 whitespace-pre-line mt-0.5">{billToAddress}</p>}
+              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '4px'}}>Bill To</p>
+              <p style={{fontSize: '15px', fontWeight: '600', color: '#111827', margin: 0}}>{billToName}</p>
+              {billToAddress && <p style={{fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line', marginTop: '2px'}}>{billToAddress}</p>}
             </div>
             {/* Date & Invoice # */}
-            <div className="text-right space-y-1">
+            <div style={{textAlign: 'right'}}>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Date</p>
-                <p className="text-sm font-medium text-gray-800">{formatDateReadable(invoiceDate)}</p>
+                <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', margin: 0}}>Date</p>
+                <p style={{fontSize: '13px', fontWeight: '500', color: '#1f2937', margin: '2px 0 0'}}>{formatDateReadable(invoiceDate)}</p>
               </div>
-              <div className="mt-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Invoice #</p>
-                <p className="text-sm font-medium text-gray-800">{invoiceNo}</p>
+              <div style={{marginTop: '10px'}}>
+                <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', margin: 0}}>Invoice #</p>
+                <p style={{fontSize: '13px', fontWeight: '500', color: '#1f2937', margin: '2px 0 0'}}>{invoiceNo}</p>
               </div>
             </div>
           </div>
 
           {/* Items Table */}
-          <div className="mb-8">
-            <table className="w-full text-sm">
+          <div style={{marginBottom: '32px'}}>
+            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
               <thead>
-                <tr className="border-b-2 border-gray-900">
-                  <th className="py-3 px-2 text-left font-semibold text-gray-700 w-10">No.</th>
-                  <th className="py-3 px-2 text-left font-semibold text-gray-700 w-24">SAC CODE</th>
-                  <th className="py-3 px-2 text-left font-semibold text-gray-700">DESCRIPTION</th>
-                  <th className="py-3 px-2 text-center font-semibold text-gray-700 w-14">QTY</th>
-                  <th className="py-3 px-2 text-right font-semibold text-gray-700 w-24">PRICE</th>
-                  <th className="py-3 px-2 text-right font-semibold text-gray-700 w-28">AMOUNT</th>
+                <tr style={{borderBottom: '2px solid #111827'}}>
+                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '40px'}}>No.</th>
+                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '90px'}}>SAC CODE</th>
+                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>DESCRIPTION</th>
+                  <th style={{padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#374151', width: '50px'}}>QTY</th>
+                  <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '90px'}}>PRICE</th>
+                  <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '100px'}}>AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, i) => {
                   const p = itemPrices[item] || { qty: 1, rate: 0 };
                   return (
-                    <tr key={item} className="border-b border-gray-100 hover:bg-gray-50/50">
-                      <td className="py-3 px-2 text-gray-500">{i + 1}</td>
-                      <td className="py-3 px-2 text-gray-500 font-mono text-xs">{DEFAULT_SAC_CODE}</td>
-                      <td className="py-3 px-2 text-gray-800">{item}</td>
-                      <td className="py-3 px-2 text-center text-gray-700">{p.qty}</td>
-                      <td className="py-3 px-2 text-right text-gray-700">{formatCurrency(p.rate)}</td>
-                      <td className="py-3 px-2 text-right font-medium text-gray-900">{formatCurrency(p.qty * p.rate)}</td>
+                    <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
+                      <td style={{padding: '10px 8px', color: '#6b7280'}}>{i + 1}</td>
+                      <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                      <td style={{padding: '10px 8px', color: '#1f2937'}}>{item}</td>
+                      <td style={{padding: '10px 8px', textAlign: 'center', color: '#374151'}}>{p.qty}</td>
+                      <td style={{padding: '10px 8px', textAlign: 'right', color: '#374151'}}>{formatCurrency(p.rate)}</td>
+                      <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '500', color: '#111827'}}>{formatCurrency(p.qty * p.rate)}</td>
                     </tr>
                   );
                 })}
@@ -216,69 +216,69 @@ export default function BillGenerator() {
           </div>
 
           {/* Totals + Bank/Terms section */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '32px'}}>
             {/* Bank Details - Left */}
-            <div className="md:col-span-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Bank Account Details</p>
-              <div className="text-xs text-gray-600 space-y-1 leading-relaxed">
-                <p><span className="text-gray-500">Account Name:</span> <span className="text-gray-800">{settings.bankDetails?.accountName}</span></p>
-                <p><span className="text-gray-500">A/C No:</span> <span className="text-gray-800 font-mono">{settings.bankDetails?.accountNo}</span></p>
-                <p><span className="text-gray-500">Bank:</span> <span className="text-gray-800">{settings.bankDetails?.bankName}</span></p>
-                <p><span className="text-gray-500">Branch:</span> <span className="text-gray-800">{settings.bankDetails?.branch}</span></p>
-                <p><span className="text-gray-500">IFSC Code:</span> <span className="text-gray-800 font-mono">{settings.bankDetails?.ifscCode}</span></p>
+            <div>
+              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bank Account Details</p>
+              <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                <p style={{margin: '0 0 3px'}}><span style={{color: '#6b7280'}}>Account Name:</span> <span style={{color: '#1f2937'}}>{settings.bankDetails?.accountName}</span></p>
+                <p style={{margin: '0 0 3px'}}><span style={{color: '#6b7280'}}>A/C No:</span> <span style={{color: '#1f2937', fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</span></p>
+                <p style={{margin: '0 0 3px'}}><span style={{color: '#6b7280'}}>Bank:</span> <span style={{color: '#1f2937'}}>{settings.bankDetails?.bankName}</span></p>
+                <p style={{margin: '0 0 3px'}}><span style={{color: '#6b7280'}}>Branch:</span> <span style={{color: '#1f2937'}}>{settings.bankDetails?.branch}</span></p>
+                <p style={{margin: 0}}><span style={{color: '#6b7280'}}>IFSC Code:</span> <span style={{color: '#1f2937', fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</span></p>
               </div>
             </div>
 
             {/* Terms - Center */}
-            <div className="md:col-span-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Terms & Conditions</p>
-              <ol className="text-xs text-gray-600 space-y-1 list-decimal pl-4 leading-relaxed">
-                {settings.termsAndConditions?.map((t, i) => <li key={i}>{t}</li>)}
+            <div>
+              <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Terms & Conditions</p>
+              <ol style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: 0, paddingLeft: '16px'}}>
+                {settings.termsAndConditions?.map((t, i) => <li key={i} style={{marginBottom: '3px'}}>{t}</li>)}
               </ol>
             </div>
 
             {/* Totals - Right */}
-            <div className="md:col-span-4">
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Subtotal</span>
-                  <span className="text-gray-800">{formatCurrency(subtotal)}</span>
+            <div>
+              <div style={{backgroundColor: '#f9fafb', borderRadius: '8px', padding: '16px'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                  <span style={{color: '#6b7280'}}>Subtotal</span>
+                  <span style={{color: '#1f2937'}}>{formatCurrency(subtotal)}</span>
                 </div>
                 {Number(discount) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Discount</span>
-                    <span className="text-red-600">-{formatCurrency(discount)}</span>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                    <span style={{color: '#6b7280'}}>Discount</span>
+                    <span style={{color: '#dc2626'}}>-{formatCurrency(discount)}</span>
                   </div>
                 )}
                 {gstEnabled && !interState && (
                   <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">CGST ({Number(gstRate)/2}%)</span>
-                      <span className="text-gray-800">{formatCurrency(gstData.cgst)}</span>
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                      <span style={{color: '#6b7280'}}>CGST ({Number(gstRate)/2}%)</span>
+                      <span style={{color: '#1f2937'}}>{formatCurrency(gstData.cgst)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">SGST ({Number(gstRate)/2}%)</span>
-                      <span className="text-gray-800">{formatCurrency(gstData.sgst)}</span>
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                      <span style={{color: '#6b7280'}}>SGST ({Number(gstRate)/2}%)</span>
+                      <span style={{color: '#1f2937'}}>{formatCurrency(gstData.sgst)}</span>
                     </div>
                   </>
                 )}
                 {gstEnabled && interState && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">IGST ({gstRate}%)</span>
-                    <span className="text-gray-800">{formatCurrency(gstData.igst)}</span>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                    <span style={{color: '#6b7280'}}>IGST ({gstRate}%)</span>
+                    <span style={{color: '#1f2937'}}>{formatCurrency(gstData.igst)}</span>
                   </div>
                 )}
                 {rounded.diff !== 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Round off</span>
-                    <span className="text-gray-600">{rounded.diff > 0 ? '+' : ''}{rounded.diff.toFixed(2)}</span>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px'}}>
+                    <span style={{color: '#6b7280'}}>Round off</span>
+                    <span style={{color: '#4b5563'}}>{rounded.diff > 0 ? '+' : ''}{rounded.diff.toFixed(2)}</span>
                   </div>
                 )}
                 {/* Final total */}
-                <div className="border-t-2 border-gray-900 pt-2 mt-2">
-                  <div className="flex justify-between">
-                    <span className="text-base font-bold text-gray-900">TOTAL</span>
-                    <span className="text-base font-bold text-gray-900">{formatCurrency(rounded.rounded)}</span>
+                <div style={{borderTop: '2px solid #111827', paddingTop: '8px', marginTop: '8px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                    <span style={{fontSize: '15px', fontWeight: 'bold', color: '#111827'}}>TOTAL</span>
+                    <span style={{fontSize: '15px', fontWeight: 'bold', color: '#111827'}}>{formatCurrency(rounded.rounded)}</span>
                   </div>
                 </div>
               </div>
@@ -286,22 +286,22 @@ export default function BillGenerator() {
           </div>
 
           {/* Make checks payable */}
-          <p className="text-xs text-gray-500 mb-3">
-            Make all checks payable to "<span className="font-semibold text-gray-700">{settings.companyName}</span>"
+          <p style={{fontSize: '11px', color: '#6b7280', marginBottom: '12px'}}>
+            Make all checks payable to "<span style={{fontWeight: '600', color: '#374151'}}>{settings.companyName}</span>"
           </p>
 
           {/* Contact line */}
-          <div className="border-t border-gray-100 pt-4 mb-6">
-            <p className="text-xs text-gray-400 text-center">
+          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginBottom: '24px'}}>
+            <p style={{fontSize: '11px', color: '#9ca3af', textAlign: 'center', margin: 0}}>
               If you have any questions about this invoice, please contact{' '}
-              <span className="text-gray-600">{settings.companyName}</span>,{' '}
-              <span className="text-gray-600">{settings.phone}</span>
+              <span style={{color: '#4b5563'}}>{settings.companyName}</span>,{' '}
+              <span style={{color: '#4b5563'}}>{settings.phone}</span>
             </p>
           </div>
 
           {/* Thank You Footer */}
-          <div className="text-center py-4 border-t border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 tracking-wide">
+          <div style={{textAlign: 'center', padding: '16px 0', borderTop: '1px solid #e5e7eb'}}>
+            <p style={{fontSize: '13px', fontWeight: '600', color: '#374151', letterSpacing: '0.05em', margin: 0}}>
               {settings.thankYouMessage || 'Thank You For Your Business!'}
             </p>
           </div>
