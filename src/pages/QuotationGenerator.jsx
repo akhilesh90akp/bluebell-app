@@ -493,7 +493,7 @@ export default function QuotationGenerator() {
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
-                  <img src="/logo-purple-horizontal.svg" alt="Bluebell" style={{height: '48px', width: 'auto'}} />
+                  <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '48px', width: 'auto'}} />
                 </td>
                 <td style={{verticalAlign: 'top', width: '50%', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
                   <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>

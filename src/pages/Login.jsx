@@ -63,7 +63,7 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] bg-bb-sidebar flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center">
-        <img src="/logo-gold.png" alt="Bluebell" className="h-14 mx-auto mb-4 object-contain" />
+        <img src={import.meta.env.BASE_URL + "logo-gold.png"} alt="Bluebell" className="h-14 mx-auto mb-4 object-contain" />
         <h1 className="text-xl font-bold text-gray-900 mb-1">Welcome to Bluebell</h1>
         <p className="text-sm text-gray-500 mb-8">Event Planners LLP</p>
 

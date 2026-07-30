@@ -25,7 +25,7 @@ function AppRoutes() {
     return (
       <div className="min-h-[100dvh] bg-bb-sidebar flex items-center justify-center">
         <div className="text-center">
-          <img src="/logo-gold.png" alt="Bluebell" className="h-12 mx-auto mb-4 animate-pulse" />
+          <img src={import.meta.env.BASE_URL + "logo-gold.png"} alt="Bluebell" className="h-12 mx-auto mb-4 animate-pulse" />
           <p className="text-bb-sidebar-muted text-sm">Loading...</p>
         </div>
       </div>

@@ -40,7 +40,7 @@ export default function Layout() {
         {/* Logo - Golden Bluebell PNG */}
         <div className="p-3 border-b border-bb-sidebar-border">
           <img
-            src="/logo-gold.png"
+            src={import.meta.env.BASE_URL + "logo-gold.png"}
             alt="Bluebell Event Planners LLP"
             className="h-10 w-auto object-contain"
           />
