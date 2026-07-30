@@ -40,7 +40,7 @@ export default function DraftsList() {
         e.eventLocation?.toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
 
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {

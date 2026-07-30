@@ -49,7 +49,7 @@ export default function ConfirmedEvents() {
         e.eventLocation?.toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
 
   /** Adds a new item to an event's items list (prevents duplicates) */
   const handleAddItem = (eventId, item) => {
