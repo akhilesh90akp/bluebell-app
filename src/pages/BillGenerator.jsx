@@ -2,8 +2,9 @@
  * BillGenerator - Invoice/bill document builder
  *
  * Generates a professional GST-compliant invoice for completed events.
- * Supports configurable invoice number, discount, GST (intra/inter-state),
- * and round-off. Includes print and WhatsApp sharing capabilities.
+ * Groups items by main event and sub-events. Supports configurable invoice
+ * number, discount, GST (intra/inter-state), and round-off.
+ * Includes print and WhatsApp sharing capabilities.
  */
 import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -16,6 +17,68 @@ import Card from '../components/Card';
 import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
 import { DEFAULT_SAC_CODE } from '../constants/data';
 import { ArrowLeft, Printer, MessageSquare } from 'lucide-react';
+
+/**
+ * Helper: get all items and event groups from an event (both old and new format).
+ */
+function getEventItemsData(event) {
+  if (event.mainEvent) {
+    const mainItems = event.mainEvent.items || [];
+    const subEvents = event.subEvents || [];
+    const allItems = [...mainItems];
+    subEvents.forEach(s => {
+      (s.items || []).forEach(item => {
+        if (!allItems.includes(item)) allItems.push(item);
+      });
+    });
+
+    const eventGroups = [];
+    if (mainItems.length > 0) {
+      eventGroups.push({
+        id: 'main',
+        name: event.mainEvent.name || event.eventType || 'Main Event',
+        date: event.mainEvent.date || '',
+        location: event.mainEvent.location || '',
+        items: mainItems,
+      });
+    }
+    subEvents.forEach(s => {
+      if ((s.items || []).length > 0) {
+        eventGroups.push({
+          id: s.id || s.name,
+          name: s.name || 'Sub Event',
+          date: s.date || '',
+          location: s.location || '',
+          items: s.items,
+        });
+      }
+    });
+
+    // If no groups but there are items (items added via quotation that aren't in mainEvent)
+    if (eventGroups.length === 0 && allItems.length > 0) {
+      eventGroups.push({
+        id: 'main',
+        name: event.mainEvent.name || event.eventType || 'Event',
+        date: event.mainEvent.date || '',
+        location: event.mainEvent.location || '',
+        items: allItems,
+      });
+    }
+
+    return { allItems, eventGroups };
+  }
+
+  // Old format (flat items array)
+  const items = event.items || [];
+  const eventGroups = [{
+    id: 'main',
+    name: event.eventType || 'Event',
+    date: event.date || '',
+    location: event.eventLocation || '',
+    items: items,
+  }];
+  return { allItems: items, eventGroups };
+}
 
 /** Builds and previews a printable invoice document for an event */
 export default function BillGenerator() {
@@ -37,16 +100,21 @@ export default function BillGenerator() {
   const [gstRate, setGstRate] = useState(String(settings.defaultGstRate || 18));
   const [interState, setInterState] = useState(false);
 
-  const items = event?.items || [];
+  // Ref for printable section
+  const pdfRef = useRef(null);
+
+  // Get items and groups (backward compatible)
+  const { allItems, eventGroups } = useMemo(() => event ? getEventItemsData(event) : { allItems: [], eventGroups: [] }, [event]);
   const itemPrices = event?.itemPrices || {};
 
   // Calculate subtotal from all item prices
-  const subtotal = useMemo(() =>
-    items.reduce((s, item) => {
-      const p = itemPrices[item] || { qty: 1, rate: 0 };
+  const subtotal = useMemo(() => {
+    const prices = itemPrices;
+    return allItems.reduce((s, item) => {
+      const p = prices[item] || { qty: 1, rate: 0 };
       return s + (p.qty * p.rate);
-    }, 0)
-  , [items, itemPrices]);
+    }, 0);
+  }, [allItems, event]);
 
   // Apply discount then calculate GST
   const afterDiscount = subtotal - (Number(discount) || 0);
@@ -63,7 +131,6 @@ export default function BillGenerator() {
   }
 
   /** Triggers the browser print dialog */
-  const pdfRef = useRef(null);
   const handlePrint = () => window.print();
 
   /** Generates a formatted WhatsApp message with invoice details */
@@ -73,7 +140,7 @@ export default function BillGenerator() {
     msg += `From: ${settings.companyName}\n`;
     msg += `To: ${billToName}\n\n`;
     msg += `*Items:*\n`;
-    items.forEach((item, i) => {
+    allItems.forEach((item, i) => {
       const p = itemPrices[item] || { qty: 1, rate: 0 };
       msg += `${i + 1}. ${item} - ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
     });
@@ -190,35 +257,73 @@ export default function BillGenerator() {
             </tbody>
           </table>
 
-          {/* Items Table */}
+          {/* Items grouped by Event */}
           <div style={{marginBottom: '32px'}}>
-            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
-              <thead>
-                <tr style={{borderBottom: '2px solid #111827'}}>
-                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '40px'}}>No.</th>
-                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '90px'}}>SAC CODE</th>
-                  <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>DESCRIPTION</th>
-                  <th style={{padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#374151', width: '50px'}}>QTY</th>
-                  <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '90px'}}>PRICE</th>
-                  <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '100px'}}>AMOUNT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => {
-                  const p = itemPrices[item] || { qty: 1, rate: 0 };
-                  return (
-                    <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
-                      <td style={{padding: '10px 8px', color: '#6b7280'}}>{i + 1}</td>
-                      <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
-                      <td style={{padding: '10px 8px', color: '#1f2937'}}>{item}</td>
-                      <td style={{padding: '10px 8px', textAlign: 'center', color: '#374151'}}>{p.qty}</td>
-                      <td style={{padding: '10px 8px', textAlign: 'right', color: '#374151'}}>{formatCurrency(p.rate)}</td>
-                      <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '500', color: '#111827'}}>{formatCurrency(p.qty * p.rate)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {eventGroups.map((group) => {
+              let slNo = 0;
+              const groupSubtotal = group.items.reduce((sum, item) => {
+                const p = itemPrices[item] || { qty: 1, rate: 0 };
+                return sum + (p.qty * p.rate);
+              }, 0);
+
+              return (
+                <div key={group.id} style={{marginBottom: '24px', pageBreakInside: 'avoid'}}>
+                  {/* Event group header */}
+                  {eventGroups.length > 1 && (
+                    <div style={{marginBottom: '8px'}}>
+                      <p style={{fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#374151', margin: 0}}>
+                        {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
+                      </p>
+                      <div style={{height: '1px', marginTop: '4px', backgroundColor: '#e5e7eb'}} />
+                    </div>
+                  )}
+
+                  {/* Items Table */}
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
+                    <thead>
+                      <tr style={{borderBottom: '2px solid #111827'}}>
+                        <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '40px'}}>No.</th>
+                        <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '90px'}}>SAC CODE</th>
+                        <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>DESCRIPTION</th>
+                        <th style={{padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#374151', width: '50px'}}>QTY</th>
+                        <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '90px'}}>PRICE</th>
+                        <th style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#374151', width: '100px'}}>AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.items.map((item) => {
+                        slNo++;
+                        const p = itemPrices[item] || { qty: 1, rate: 0 };
+                        return (
+                          <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
+                            <td style={{padding: '10px 8px', color: '#6b7280'}}>{slNo}</td>
+                            <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                            <td style={{padding: '10px 8px', color: '#1f2937'}}>{item}</td>
+                            <td style={{padding: '10px 8px', textAlign: 'center', color: '#374151'}}>{p.qty}</td>
+                            <td style={{padding: '10px 8px', textAlign: 'right', color: '#374151'}}>{formatCurrency(p.rate)}</td>
+                            <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '500', color: '#111827'}}>{formatCurrency(p.qty * p.rate)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Group subtotal (only show if multiple groups) */}
+                  {eventGroups.length > 1 && (
+                    <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '4px'}}>
+                      <tbody>
+                        <tr>
+                          <td style={{textAlign: 'right', padding: '6px 8px'}}>
+                            <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', marginRight: '12px'}}>Subtotal:</span>
+                            <span style={{fontSize: '12px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(groupSubtotal)}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Totals + Bank/Terms section */}

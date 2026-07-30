@@ -2,8 +2,9 @@
  * ConfirmedEvents - Confirmed and completed events management
  *
  * Displays all confirmed/completed events with expandable details.
- * Provides functionality to add items, set per-item pricing,
- * mark events as done, and navigate to quotation/bill generators.
+ * Provides functionality to add items (choosing main or sub-event),
+ * set per-item pricing, mark events as done, and navigate to generators.
+ * Backward compatible with old event format.
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,9 +17,33 @@ import Modal from '../components/Modal';
 import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink } from '../utils/helpers';
 import {
   Search, Phone, MessageSquare, FileText, CheckCircle2,
-  CalendarDays, MapPin, PackageOpen, Plus, X, Receipt, Edit3,
-  ChevronDown, ChevronUp, Home, Navigation, StickyNote, Trash2,
+  CalendarDays, MapPin, PackageOpen, Plus, Receipt, Edit3,
+  ChevronDown, ChevronUp, Home, Navigation, Trash2,
 } from 'lucide-react';
+
+/**
+ * Helper: get all items from an event (both old and new format)
+ */
+function getAllItems(ev) {
+  if (ev.mainEvent) {
+    const items = [...(ev.mainEvent.items || [])];
+    (ev.subEvents || []).forEach(s => {
+      (s.items || []).forEach(item => {
+        if (!items.includes(item)) items.push(item);
+      });
+    });
+    return items;
+  }
+  return ev.items || [];
+}
+
+/**
+ * Helper: get display date for an event (backward compatible)
+ */
+function getEventDate(ev) {
+  if (ev.mainEvent?.date) return ev.mainEvent.date;
+  return ev.date || '';
+}
 
 /** Manages confirmed events with pricing, item addition, and completion */
 export default function ConfirmedEvents() {
@@ -29,6 +54,7 @@ export default function ConfirmedEvents() {
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
   const [priceModal, setPriceModal] = useState(null); // event id for pricing modal
   const [newItem, setNewItem] = useState('');
+  const [addItemTarget, setAddItemTarget] = useState('main'); // which event to add item to
   const [prices, setPrices] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
@@ -46,16 +72,41 @@ export default function ConfirmedEvents() {
       return (
         e.clientName?.toLowerCase().includes(q) ||
         e.eventType?.toLowerCase().includes(q) ||
-        e.eventLocation?.toLowerCase().includes(q)
+        (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
+    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
 
-  /** Adds a new item to an event's items list (prevents duplicates) */
+  /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {
     if (!item.trim()) return;
     const ev = events.find(e => e.id === eventId);
-    if (ev) {
+    if (!ev) return;
+
+    if (ev.mainEvent) {
+      // New format: add to specified target
+      if (addItemTarget === 'main') {
+        const mainItems = [...(ev.mainEvent.items || [])];
+        if (!mainItems.includes(item.trim())) {
+          mainItems.push(item.trim());
+          updateEvent(eventId, { mainEvent: { ...ev.mainEvent, items: mainItems } });
+        }
+      } else {
+        // Add to a sub-event
+        const subEvents = (ev.subEvents || []).map(s => {
+          if (s.id === addItemTarget) {
+            const subItems = [...(s.items || [])];
+            if (!subItems.includes(item.trim())) {
+              subItems.push(item.trim());
+            }
+            return { ...s, items: subItems };
+          }
+          return s;
+        });
+        updateEvent(eventId, { subEvents });
+      }
+    } else {
+      // Old format: flat items array
       const items = [...(ev.items || [])];
       if (!items.includes(item.trim())) {
         items.push(item.trim());
@@ -65,10 +116,11 @@ export default function ConfirmedEvents() {
     setNewItem('');
   };
 
-  /** Opens the pricing modal with current item prices pre-filled */
+  /** Opens the pricing modal with current item prices pre-filled (all items from main + sub) */
   const openPriceModal = (ev) => {
+    const allItems = getAllItems(ev);
     const p = {};
-    (ev.items || []).forEach(item => {
+    allItems.forEach(item => {
       const existing = ev.itemPrices?.[item];
       p[item] = existing || { qty: 1, rate: 0 };
     });
@@ -94,6 +146,16 @@ export default function ConfirmedEvents() {
   /** Toggles the expanded/collapsed state of an event card */
   const toggleExpand = (id) => {
     setExpandedId(prev => prev === id ? null : id);
+  };
+
+  /** Gets event target options for add-item dropdown */
+  const getTargetOptions = (ev) => {
+    if (!ev?.mainEvent) return [{ value: 'main', label: 'Event' }];
+    const opts = [{ value: 'main', label: ev.mainEvent.name || 'Main Event' }];
+    (ev.subEvents || []).forEach(s => {
+      opts.push({ value: s.id, label: s.name || 'Sub Event' });
+    });
+    return opts;
   };
 
   return (
@@ -139,8 +201,9 @@ export default function ConfirmedEvents() {
       ) : (
         <div className="space-y-3">
           {confirmedEvents.map(ev => {
-            const days = daysUntil(ev.date);
-            const items = ev.items || [];
+            const evDate = getEventDate(ev);
+            const days = daysUntil(evDate);
+            const allItems = getAllItems(ev);
             const isExpanded = expandedId === ev.id;
             return (
               <Card key={ev.id}>
@@ -157,10 +220,15 @@ export default function ConfirmedEvents() {
                         <Badge variant={ev.status}>{ev.status}</Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                        {ev.date && (
+                        {evDate && (
                           <span className="flex items-center gap-1">
                             <CalendarDays size={14} />
-                            {formatDateReadable(ev.date)}
+                            {formatDateReadable(evDate)}
+                          </span>
+                        )}
+                        {(ev.subEvents || []).length > 0 && (
+                          <span className="text-xs text-bb-accent">
+                            +{ev.subEvents.length} sub-event{ev.subEvents.length > 1 ? 's' : ''}
                           </span>
                         )}
                         {ev.totalAmount > 0 && (
@@ -190,11 +258,11 @@ export default function ConfirmedEvents() {
                   {isExpanded && (
                     <div className="space-y-3 pt-2 border-t border-bb-border">
                       {/* Items with Prices */}
-                      {items.length > 0 && (
+                      {allItems.length > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-bb-muted uppercase mb-1.5">Items</p>
                           <div className="space-y-1">
-                            {items.map(item => {
+                            {allItems.map(item => {
                               const price = ev.itemPrices?.[item];
                               return (
                                 <div key={item} className="flex items-center justify-between text-sm px-2 py-1 rounded bg-bb-input">
@@ -227,16 +295,16 @@ export default function ConfirmedEvents() {
                             <span>Client Address: <span className="text-bb-text">{ev.clientAddress}</span></span>
                           </div>
                         )}
+                        {(ev.mainEvent?.location || ev.eventLocation) && (
+                          <div className="flex items-start gap-2 text-sm text-bb-muted">
+                            <MapPin size={14} className="flex-shrink-0 mt-0.5" />
+                            <span>Event Location: <span className="text-bb-text">{ev.mainEvent?.location || ev.eventLocation}</span></span>
+                          </div>
+                        )}
                         {ev.houseLocation && (
                           <div className="flex items-start gap-2 text-sm text-bb-muted">
                             <Navigation size={14} className="flex-shrink-0 mt-0.5" />
                             <span>House Location: <span className="text-bb-text">{ev.houseLocation}</span></span>
-                          </div>
-                        )}
-                        {ev.eventLocation && (
-                          <div className="flex items-start gap-2 text-sm text-bb-muted">
-                            <MapPin size={14} className="flex-shrink-0 mt-0.5" />
-                            <span>Event Location: <span className="text-bb-text">{ev.eventLocation}</span></span>
                           </div>
                         )}
                       </div>
@@ -256,7 +324,7 @@ export default function ConfirmedEvents() {
                           </a>
                         )}
                         <Button size="sm" variant="ghost" icon={Edit3} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
-                        <Button size="sm" variant="secondary" icon={Plus} onClick={() => setAddItemModal(ev.id)}>Add Item</Button>
+                        <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setAddItemModal(ev.id); setAddItemTarget('main'); }}>Add Item</Button>
                         <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
                         <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
                         <Button size="sm" variant="secondary" icon={Receipt} onClick={() => navigate(`/bill/${ev.id}`)}>Bill</Button>
@@ -272,7 +340,7 @@ export default function ConfirmedEvents() {
                   {!isExpanded && (
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-bb-border">
                       <Button size="sm" variant="ghost" icon={Edit3} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
-                      <Button size="sm" variant="secondary" icon={Plus} onClick={() => setAddItemModal(ev.id)}>Add Item</Button>
+                      <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setAddItemModal(ev.id); setAddItemTarget('main'); }}>Add Item</Button>
                       <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
                       <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
                       <Button size="sm" variant="secondary" icon={Receipt} onClick={() => navigate(`/bill/${ev.id}`)}>Bill</Button>
@@ -289,6 +357,29 @@ export default function ConfirmedEvents() {
       {/* Add Item Modal */}
       <Modal isOpen={!!addItemModal} onClose={() => setAddItemModal(null)} title="Add Item" size="md">
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {/* Target selector: which event to add item to */}
+          {(() => {
+            const ev = events.find(e => e.id === addItemModal);
+            const targets = getTargetOptions(ev);
+            if (targets.length > 1) {
+              return (
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-bb-text mb-1">Add to:</label>
+                  <select
+                    value={addItemTarget}
+                    onChange={e => setAddItemTarget(e.target.value)}
+                    className="w-full bg-bb-input border border-bb-border rounded-lg px-3 py-2 text-sm text-bb-text"
+                  >
+                    {targets.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Custom Input */}
           <div className="flex gap-2">
             <Input placeholder="Custom item..." value={newItem} onChange={e => setNewItem(e.target.value)}
@@ -306,7 +397,8 @@ export default function ConfirmedEvents() {
                 <div className="flex flex-wrap gap-1.5">
                   {cat.items.map(item => {
                     const ev = events.find(e => e.id === addItemModal);
-                    const selected = ev?.items?.includes(item);
+                    const allItems = ev ? getAllItems(ev) : [];
+                    const selected = allItems.includes(item);
                     return (
                       <button
                         key={item}

@@ -2,8 +2,8 @@
  * DraftsList - Draft events management page
  *
  * Displays all draft events in an expandable card list with search filtering.
- * Each card shows client info, event details, items, and action buttons
- * (edit, quote, confirm, delete). Supports confirmation and deletion with modal.
+ * Each card shows client info, event details, items, and action buttons.
+ * Backward compatible with old event format (no mainEvent/subEvents).
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,8 +17,40 @@ import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink } from '
 import {
   Search, Phone, MessageSquare, Edit, FileText, CheckCircle,
   Trash2, CalendarDays, MapPin, PackageOpen, ChevronDown, ChevronUp,
-  Home, Navigation, StickyNote, IndianRupee,
+  Home, Navigation, IndianRupee,
 } from 'lucide-react';
+
+/**
+ * Helper: get all items from an event (both old and new format)
+ */
+function getAllItems(ev) {
+  if (ev.mainEvent) {
+    const items = [...(ev.mainEvent.items || [])];
+    (ev.subEvents || []).forEach(s => {
+      (s.items || []).forEach(item => {
+        if (!items.includes(item)) items.push(item);
+      });
+    });
+    return items;
+  }
+  return ev.items || [];
+}
+
+/**
+ * Helper: get display date for an event (backward compatible)
+ */
+function getEventDate(ev) {
+  if (ev.mainEvent?.date) return ev.mainEvent.date;
+  return ev.date || '';
+}
+
+/**
+ * Helper: get event location (backward compatible)
+ */
+function getEventLocation(ev) {
+  if (ev.mainEvent?.location) return ev.mainEvent.location;
+  return ev.eventLocation || '';
+}
 
 /** Lists all draft events with search, expand/collapse, and actions */
 export default function DraftsList() {
@@ -37,10 +69,10 @@ export default function DraftsList() {
       return (
         e.clientName?.toLowerCase().includes(q) ||
         e.eventType?.toLowerCase().includes(q) ||
-        e.eventLocation?.toLowerCase().includes(q)
+        getEventLocation(e).toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
+    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
 
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {
@@ -91,9 +123,12 @@ export default function DraftsList() {
       ) : (
         <div className="space-y-3">
           {drafts.map(ev => {
-            const days = daysUntil(ev.date);
-            const items = ev.items || [];
+            const evDate = getEventDate(ev);
+            const days = daysUntil(evDate);
+            const allItems = getAllItems(ev);
+            const subEventCount = (ev.subEvents || []).length;
             const isExpanded = expandedId === ev.id;
+            const location = getEventLocation(ev);
             return (
               <Card key={ev.id}>
                 <div className="space-y-3">
@@ -108,21 +143,26 @@ export default function DraftsList() {
                         <Badge variant="draft">{ev.eventType}</Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                        {ev.date && (
+                        {evDate && (
                           <span className="flex items-center gap-1">
                             <CalendarDays size={14} />
-                            {formatDateReadable(ev.date)}
+                            {formatDateReadable(evDate)}
                           </span>
                         )}
-                        {ev.eventLocation && (
+                        {location && (
                           <span className="flex items-center gap-1 truncate max-w-[200px]">
                             <MapPin size={14} />
-                            {ev.eventLocation}
+                            {location}
                           </span>
                         )}
-                        {items.length > 0 && (
+                        {allItems.length > 0 && (
                           <span className="text-xs text-bb-muted">
-                            {items.length} item{items.length !== 1 ? 's' : ''}
+                            {allItems.length} item{allItems.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {subEventCount > 0 && (
+                          <span className="text-xs text-bb-accent">
+                            +{subEventCount} sub-event{subEventCount > 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -150,11 +190,11 @@ export default function DraftsList() {
                   {isExpanded && (
                     <div className="space-y-3 pt-2 border-t border-bb-border">
                       {/* All Items */}
-                      {items.length > 0 && (
+                      {allItems.length > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-bb-muted uppercase mb-1.5">Items</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {items.map(item => (
+                            {allItems.map(item => (
                               <span key={item} className="text-xs px-2 py-0.5 bg-bb-accent/10 text-bb-accent rounded-full">
                                 {item}
                               </span>
@@ -193,10 +233,10 @@ export default function DraftsList() {
                             <span>House Location: <span className="text-bb-text">{ev.houseLocation}</span></span>
                           </div>
                         )}
-                        {ev.eventLocation && (
+                        {location && (
                           <div className="flex items-start gap-2 text-sm text-bb-muted">
                             <MapPin size={14} className="flex-shrink-0 mt-0.5" />
-                            <span>Event Location: <span className="text-bb-text">{ev.eventLocation}</span></span>
+                            <span>Event Location: <span className="text-bb-text">{location}</span></span>
                           </div>
                         )}
                       </div>

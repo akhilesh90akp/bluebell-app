@@ -1,9 +1,9 @@
 /**
- * EditDraft - Event editing form
+ * EditDraft - Event editing form with sub-events support
  *
  * Loads an existing event by ID from URL params and populates
- * the same form structure as NewDraft for modification.
- * Validates and updates the event on submission.
+ * the form with main event + sub-events structure.
+ * Backward compatible: handles old events without mainEvent/subEvents.
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -14,10 +14,100 @@ import Input from '../components/Input';
 import Select from '../components/Select';
 import LocationInput from '../components/LocationInput';
 import { EVENT_TYPES } from '../constants/data';
+import { genId } from '../utils/helpers';
 import {
   User, Phone, MessageSquare, MapPin, Calendar, Clock,
-  IndianRupee, ChevronDown, ChevronUp, X, Plus, Save, StickyNote, ArrowLeft,
+  IndianRupee, ChevronDown, ChevronUp, X, Plus, Save, StickyNote, ArrowLeft, Layers,
 } from 'lucide-react';
+
+/** Reusable items selection accordion for an event section */
+function ItemsSelector({ selectedItems, onToggle, onRemove, onAddCustom, categories, label }) {
+  const [openCat, setOpenCat] = useState(null);
+  const [customItem, setCustomItem] = useState('');
+
+  const selectedCountForCat = (cat) =>
+    cat.items.filter(i => selectedItems.includes(i)).length;
+
+  const addCustom = () => {
+    if (customItem.trim() && !selectedItems.includes(customItem.trim())) {
+      onAddCustom(customItem.trim());
+      setCustomItem('');
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-bb-muted uppercase mb-2">{label}</p>
+
+      {/* Selected Items Tags */}
+      {selectedItems.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4 pb-3 border-b border-bb-border">
+          {selectedItems.map(item => (
+            <span key={item} className="inline-flex items-center gap-1 px-2 py-1 bg-bb-accent/20 text-bb-accent text-xs rounded-full">
+              {item}
+              <button onClick={() => onRemove(item)} className="hover:text-white cursor-pointer">
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Categories Accordion */}
+      <div className="space-y-2">
+        {categories.map(cat => {
+          const isOpen = openCat === cat.id;
+          return (
+            <div key={cat.id} className={`rounded-lg overflow-hidden transition-all ${isOpen ? 'border-l-4 border-l-bb-accent border border-bb-accent/30 bg-bb-accent/5 shadow-sm' : 'border border-bb-border'}`}>
+              <button
+                onClick={() => setOpenCat(isOpen ? null : cat.id)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 transition-colors cursor-pointer ${isOpen ? 'bg-bb-accent/10' : 'bg-bb-input hover:bg-bb-card-hover'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-bb-text">
+                  <span>{cat.icon}</span>
+                  {cat.name}
+                  {selectedCountForCat(cat) > 0 && (
+                    <span className="text-xs bg-bb-accent text-white px-1.5 py-0.5 rounded-full">
+                      {selectedCountForCat(cat)}
+                    </span>
+                  )}
+                </span>
+                {isOpen ? <ChevronUp size={18} className="text-bb-accent" /> : <ChevronDown size={18} className="text-bb-muted" />}
+              </button>
+
+              {isOpen && (
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {cat.items.map(item => (
+                    <button
+                      key={item}
+                      onClick={() => onToggle(item)}
+                      className={`text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
+                        selectedItems.includes(item)
+                          ? 'bg-bb-accent/20 border-bb-accent text-bb-accent font-medium'
+                          : 'bg-white border-bb-border text-bb-text hover:border-bb-accent/50'
+                      }`}
+                    >
+                      {selectedItems.includes(item) && '✓ '}{item}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Custom Item */}
+      <div className="flex gap-2 mt-4">
+        <Input placeholder="Custom item..." value={customItem} onChange={e => setCustomItem(e.target.value)}
+          className="flex-1"
+          onKeyDown={e => e.key === 'Enter' && addCustom()}
+        />
+        <Button icon={Plus} variant="secondary" onClick={addCustom}>Add</Button>
+      </div>
+    </div>
+  );
+}
 
 /** Form page for editing an existing event draft */
 export default function EditDraft() {
@@ -27,16 +117,21 @@ export default function EditDraft() {
 
   const event = events.find(e => e.id === eventId);
 
-  // Form state mirrors the event data structure
+  // Form state
   const [form, setForm] = useState({
     clientName: '', clientPhone: '', clientWhatsapp: '', clientAddress: '',
-    houseLocation: '', eventLocation: '',
-    date: '', time: '', eventType: '', budget: '',
-    selectedItems: [], notes: '',
+    eventType: '', budget: '', notes: '',
   });
+
+  // Main event state
+  const [mainEvent, setMainEvent] = useState({
+    name: '', date: '', time: '', location: '', items: [],
+  });
+
+  // Sub-events state
+  const [subEvents, setSubEvents] = useState([]);
+
   const [errors, setErrors] = useState({});
-  const [openCat, setOpenCat] = useState(null);
-  const [customItem, setCustomItem] = useState('');
 
   // Populate form with existing event data when loaded
   useEffect(() => {
@@ -46,15 +141,39 @@ export default function EditDraft() {
         clientPhone: event.clientPhone || '',
         clientWhatsapp: event.clientWhatsapp || '',
         clientAddress: event.clientAddress || '',
-        houseLocation: event.houseLocation || '',
-        eventLocation: event.eventLocation || '',
-        date: event.date || '',
-        time: event.time || '',
         eventType: event.eventType || '',
         budget: event.budget ? String(event.budget) : '',
-        selectedItems: event.items || [],
         notes: event.notes || '',
       });
+
+      // Handle new format (mainEvent exists)
+      if (event.mainEvent) {
+        setMainEvent({
+          name: event.mainEvent.name || '',
+          date: event.mainEvent.date || '',
+          time: event.mainEvent.time || '',
+          location: event.mainEvent.location || '',
+          items: event.mainEvent.items || [],
+        });
+        setSubEvents((event.subEvents || []).map(s => ({
+          id: s.id || genId(),
+          name: s.name || '',
+          date: s.date || '',
+          time: s.time || '',
+          location: s.location || '',
+          items: s.items || [],
+        })));
+      } else {
+        // Backward compatibility: old format without mainEvent
+        setMainEvent({
+          name: event.eventType || '',
+          date: event.date || '',
+          time: event.time || '',
+          location: event.eventLocation || event.houseLocation || '',
+          items: event.items || [],
+        });
+        setSubEvents([]);
+      }
     }
   }, [event]);
 
@@ -71,27 +190,58 @@ export default function EditDraft() {
   /** Shorthand helper to update a single form field */
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
-  /** Toggles an item in/out of the selected items list */
-  const toggleItem = (item) => {
-    setForm(p => ({
+  /** Update main event field */
+  const setMainField = (key, val) => setMainEvent(p => ({ ...p, [key]: val }));
+
+  /** Toggle item in main event */
+  const toggleMainItem = (item) => {
+    setMainEvent(p => ({
       ...p,
-      selectedItems: p.selectedItems.includes(item)
-        ? p.selectedItems.filter(i => i !== item)
-        : [...p.selectedItems, item],
+      items: p.items.includes(item) ? p.items.filter(i => i !== item) : [...p.items, item],
     }));
   };
 
-  /** Removes a specific item from the selected list */
-  const removeItem = (item) => {
-    setForm(p => ({ ...p, selectedItems: p.selectedItems.filter(i => i !== item) }));
+  /** Remove item from main event */
+  const removeMainItem = (item) => {
+    setMainEvent(p => ({ ...p, items: p.items.filter(i => i !== item) }));
   };
 
-  /** Adds a custom free-text item to the selected list */
-  const addCustomItem = () => {
-    if (customItem.trim() && !form.selectedItems.includes(customItem.trim())) {
-      setForm(p => ({ ...p, selectedItems: [...p.selectedItems, customItem.trim()] }));
-      setCustomItem('');
-    }
+  /** Add custom item to main event */
+  const addCustomMainItem = (item) => {
+    setMainEvent(p => ({ ...p, items: [...p.items, item] }));
+  };
+
+  /** Add a new sub-event */
+  const addSubEvent = () => {
+    setSubEvents(p => [...p, { id: genId(), name: '', date: '', time: '', location: '', items: [] }]);
+  };
+
+  /** Remove a sub-event by id */
+  const removeSubEvent = (id) => {
+    setSubEvents(p => p.filter(s => s.id !== id));
+  };
+
+  /** Update a sub-event field */
+  const setSubField = (id, key, val) => {
+    setSubEvents(p => p.map(s => s.id === id ? { ...s, [key]: val } : s));
+  };
+
+  /** Toggle item in a sub-event */
+  const toggleSubItem = (subId, item) => {
+    setSubEvents(p => p.map(s => {
+      if (s.id !== subId) return s;
+      return { ...s, items: s.items.includes(item) ? s.items.filter(i => i !== item) : [...s.items, item] };
+    }));
+  };
+
+  /** Remove item from a sub-event */
+  const removeSubItem = (subId, item) => {
+    setSubEvents(p => p.map(s => s.id === subId ? { ...s, items: s.items.filter(i => i !== item) } : s));
+  };
+
+  /** Add custom item to a sub-event */
+  const addCustomSubItem = (subId, item) => {
+    setSubEvents(p => p.map(s => s.id === subId ? { ...s, items: [...s.items, item] } : s));
   };
 
   /** Validates required fields and returns true if form is valid */
@@ -99,7 +249,7 @@ export default function EditDraft() {
     const errs = {};
     if (!form.clientName.trim()) errs.clientName = 'Required';
     if (!form.clientPhone.trim()) errs.clientPhone = 'Required';
-    if (!form.date) errs.date = 'Required';
+    if (!mainEvent.date) errs.mainDate = 'Required';
     if (!form.eventType) errs.eventType = 'Required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -113,22 +263,29 @@ export default function EditDraft() {
       clientPhone: form.clientPhone.trim(),
       clientWhatsapp: form.clientWhatsapp.trim(),
       clientAddress: form.clientAddress.trim(),
-      houseLocation: form.houseLocation.trim(),
-      eventLocation: form.eventLocation.trim(),
-      date: form.date,
-      time: form.time,
       eventType: form.eventType,
       budget: form.budget ? Number(form.budget) : null,
-      items: form.selectedItems,
       notes: form.notes.trim(),
+      mainEvent: {
+        name: mainEvent.name.trim() || form.eventType,
+        date: mainEvent.date,
+        time: mainEvent.time,
+        location: mainEvent.location.trim(),
+        items: mainEvent.items,
+      },
+      subEvents: subEvents.map(s => ({
+        id: s.id,
+        name: s.name.trim() || 'Sub Event',
+        date: s.date,
+        time: s.time,
+        location: s.location.trim(),
+        items: s.items,
+      })),
+      itemPrices: event.itemPrices || {},
     });
     showToast('Changes saved');
     navigate('/drafts', { replace: true });
   };
-
-  /** Returns count of selected items belonging to a specific category */
-  const selectedCountForCat = (cat) =>
-    cat.items.filter(i => form.selectedItems.includes(i)).length;
 
   return (
     <div className="space-y-4 pb-8">
@@ -154,25 +311,10 @@ export default function EditDraft() {
         </div>
       </Card>
 
-      {/* Location */}
-      <Card>
-        <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Location</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <LocationInput label="House / Client Location" placeholder="Search or type address..."
-            value={form.houseLocation} onChange={val => set('houseLocation', val)} />
-          <LocationInput label="Event / Venue Location" placeholder="Search venue location..."
-            value={form.eventLocation} onChange={val => set('eventLocation', val)} />
-        </div>
-      </Card>
-
-      {/* Event Details */}
+      {/* Event Type & Budget */}
       <Card>
         <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Event Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input label="Date" type="date" required icon={Calendar}
-            value={form.date} onChange={e => set('date', e.target.value)} error={errors.date} />
-          <Input label="Time" type="time" icon={Clock}
-            value={form.time} onChange={e => set('time', e.target.value)} />
           <Select label="Event Type" required options={EVENT_TYPES}
             value={form.eventType} onChange={e => set('eventType', e.target.value)} error={errors.eventType} />
           <Input label="Budget" placeholder="Approx budget" icon={IndianRupee} type="number"
@@ -180,71 +322,75 @@ export default function EditDraft() {
         </div>
       </Card>
 
-      {/* Services */}
+      {/* Main Event */}
       <Card>
-        <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Services</h3>
-
-        {form.selectedItems.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4 pb-3 border-b border-bb-border">
-            {form.selectedItems.map(item => (
-              <span key={item} className="inline-flex items-center gap-1 px-2 py-1 bg-bb-accent/20 text-bb-accent text-xs rounded-full">
-                {item}
-                <button onClick={() => removeItem(item)} className="hover:text-white cursor-pointer">
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {categories.map(cat => (
-            <div key={cat.id} className="border border-bb-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setOpenCat(openCat === cat.id ? null : cat.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-bb-input hover:bg-bb-card-hover transition-colors cursor-pointer"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium text-bb-text">
-                  <span>{cat.icon}</span>
-                  {cat.name}
-                  {selectedCountForCat(cat) > 0 && (
-                    <span className="text-xs bg-bb-accent text-white px-1.5 py-0.5 rounded-full">
-                      {selectedCountForCat(cat)}
-                    </span>
-                  )}
-                </span>
-                {openCat === cat.id ? <ChevronUp size={18} className="text-bb-muted" /> : <ChevronDown size={18} className="text-bb-muted" />}
-              </button>
-
-              {openCat === cat.id && (
-                <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {cat.items.map(item => (
-                    <button
-                      key={item}
-                      onClick={() => toggleItem(item)}
-                      className={`text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
-                        form.selectedItems.includes(item)
-                          ? 'bg-bb-accent/20 border-bb-accent text-bb-accent'
-                          : 'bg-bb-input border-bb-border text-bb-text hover:border-bb-accent/50'
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+        <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">🎯 Main Event</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <Input label="Event Name" placeholder={form.eventType || 'e.g., Wedding Ceremony'}
+            value={mainEvent.name} onChange={e => setMainField('name', e.target.value)} />
+          <Input label="Date" type="date" required icon={Calendar}
+            value={mainEvent.date} onChange={e => setMainField('date', e.target.value)} error={errors.mainDate} />
+          <Input label="Time" type="time" icon={Clock}
+            value={mainEvent.time} onChange={e => setMainField('time', e.target.value)} />
+          <LocationInput label="Event Location" placeholder="Search venue location..."
+            value={mainEvent.location} onChange={val => setMainField('location', val)} />
         </div>
 
-        <div className="flex gap-2 mt-4">
-          <Input placeholder="Custom item..." value={customItem} onChange={e => setCustomItem(e.target.value)}
-            className="flex-1"
-            onKeyDown={e => e.key === 'Enter' && addCustomItem()}
-          />
-          <Button icon={Plus} variant="secondary" onClick={addCustomItem}>Add</Button>
-        </div>
+        {/* Main Event Items */}
+        <ItemsSelector
+          selectedItems={mainEvent.items}
+          onToggle={toggleMainItem}
+          onRemove={removeMainItem}
+          onAddCustom={addCustomMainItem}
+          categories={categories}
+          label="Main Event Services"
+        />
       </Card>
+
+      {/* Sub-Events */}
+      {subEvents.map((sub, idx) => (
+        <Card key={sub.id}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-bb-muted uppercase">
+              <Layers size={14} className="inline mr-1" />
+              Sub-Event {idx + 1}
+            </h3>
+            <button
+              onClick={() => removeSubEvent(sub.id)}
+              className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+              title="Remove sub-event"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <Input label="Sub-Event Name" placeholder="e.g., Home Function, Reception..."
+              value={sub.name} onChange={e => setSubField(sub.id, 'name', e.target.value)} />
+            <Input label="Date" type="date" icon={Calendar}
+              value={sub.date} onChange={e => setSubField(sub.id, 'date', e.target.value)} />
+            <Input label="Time" type="time" icon={Clock}
+              value={sub.time} onChange={e => setSubField(sub.id, 'time', e.target.value)} />
+            <LocationInput label="Location" placeholder="Search location..."
+              value={sub.location} onChange={val => setSubField(sub.id, 'location', val)} />
+          </div>
+
+          {/* Sub-Event Items */}
+          <ItemsSelector
+            selectedItems={sub.items}
+            onToggle={(item) => toggleSubItem(sub.id, item)}
+            onRemove={(item) => removeSubItem(sub.id, item)}
+            onAddCustom={(item) => addCustomSubItem(sub.id, item)}
+            categories={categories}
+            label={`${sub.name || 'Sub-Event'} Services`}
+          />
+        </Card>
+      ))}
+
+      {/* Add Sub-Event Button */}
+      <Button icon={Plus} variant="secondary" fullWidth onClick={addSubEvent}>
+        Add Sub-Event
+      </Button>
 
       {/* Notes */}
       <Card>

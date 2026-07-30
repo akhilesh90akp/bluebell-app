@@ -1,9 +1,9 @@
 /**
  * QuotationGenerator - Professional quotation document builder
  *
- * Generates a print-ready quotation for an event. Allows adding/removing items,
- * setting per-item quantities and rates, enabling GST, and grouping items by category.
- * Supports printing, WhatsApp sharing, and saving item prices back to the event.
+ * Generates a print-ready quotation for an event. Groups items by main event
+ * and sub-events. Allows adding/removing items, setting per-item quantities
+ * and rates, and enabling GST. Supports printing and WhatsApp sharing.
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,6 +17,60 @@ import Modal from '../components/Modal';
 import { formatCurrency, formatDateReadable, calcGST, waLink } from '../utils/helpers';
 import { ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package, ChevronDown, ChevronRight } from 'lucide-react';
 
+/**
+ * Helper: get all items from an event (both old and new format).
+ * Returns { allItems, eventGroups } where eventGroups is an array of
+ * { name, date, location, items } for display in the document.
+ */
+function getEventItemsData(event) {
+  // New format with mainEvent
+  if (event.mainEvent) {
+    const mainItems = event.mainEvent.items || [];
+    const subEvents = event.subEvents || [];
+    const allItems = [...mainItems];
+    subEvents.forEach(s => {
+      (s.items || []).forEach(item => {
+        if (!allItems.includes(item)) allItems.push(item);
+      });
+    });
+
+    const eventGroups = [];
+    if (mainItems.length > 0 || allItems.length === 0) {
+      eventGroups.push({
+        id: 'main',
+        name: event.mainEvent.name || event.eventType || 'Main Event',
+        date: event.mainEvent.date || '',
+        location: event.mainEvent.location || '',
+        items: mainItems,
+      });
+    }
+    subEvents.forEach(s => {
+      if ((s.items || []).length > 0) {
+        eventGroups.push({
+          id: s.id || s.name,
+          name: s.name || 'Sub Event',
+          date: s.date || '',
+          location: s.location || '',
+          items: s.items,
+        });
+      }
+    });
+
+    return { allItems, eventGroups };
+  }
+
+  // Old format (flat items array)
+  const items = event.items || [];
+  const eventGroups = [{
+    id: 'main',
+    name: event.eventType || 'Event',
+    date: event.date || '',
+    location: event.eventLocation || '',
+    items: items,
+  }];
+  return { allItems: items, eventGroups };
+}
+
 /** Builds and previews a printable quotation document for an event */
 export default function QuotationGenerator() {
   const { eventId } = useParams();
@@ -28,7 +82,8 @@ export default function QuotationGenerator() {
   const [itemPrices, setItemPrices] = useState(() => {
     if (!event) return {};
     const p = {};
-    (event.items || []).forEach(item => {
+    const { allItems } = event ? getEventItemsData(event) : { allItems: [] };
+    allItems.forEach(item => {
       const existing = event.itemPrices?.[item];
       p[item] = existing || { qty: 1, rate: 0 };
     });
@@ -44,14 +99,18 @@ export default function QuotationGenerator() {
   const [expandedCategories, setExpandedCategories] = useState({});
 
   // Local items list tracking (synced from event)
-  const [localItems, setLocalItems] = useState(event?.items || []);
+  const [localItems, setLocalItems] = useState(() => event ? getEventItemsData(event).allItems : []);
 
-  // Sync localItems when event loads (context may load async from localStorage)
+  // Ref for printable section (must be before early return)
+  const pdfRef = useRef(null);
+
+  // Sync localItems when event loads (context may load async from Firestore)
   useEffect(() => {
-    if (event?.items && localItems.length === 0) {
-      setLocalItems(event.items);
+    if (event && localItems.length === 0) {
+      const { allItems } = getEventItemsData(event);
+      setLocalItems(allItems);
       const p = {};
-      event.items.forEach(item => {
+      allItems.forEach(item => {
         p[item] = event.itemPrices?.[item] || { qty: 1, rate: 0 };
       });
       setItemPrices(p);
@@ -69,40 +128,52 @@ export default function QuotationGenerator() {
   // Calculate GST breakdown
   const gstData = useMemo(() => calcGST(subtotal, gstEnabled ? Number(gstRate) : 0), [subtotal, gstEnabled, gstRate]);
 
-  // Group items by their service category for organized display
-  const groupedItems = useMemo(() => {
-    const groups = [];
-    const assigned = new Set();
+  // Build event groups for printable document using current local items
+  const printGroups = useMemo(() => {
+    if (!event) return [];
+    // Use the event structure to determine groups
+    if (event.mainEvent) {
+      const groups = [];
+      const mainItems = (event.mainEvent.items || []).filter(i => localItems.includes(i));
+      // Also include items that were added and aren't in any sub-event
+      const subEventItems = new Set();
+      (event.subEvents || []).forEach(s => (s.items || []).forEach(i => subEventItems.add(i)));
+      const extraMainItems = localItems.filter(i => !subEventItems.has(i) && !(event.mainEvent.items || []).includes(i));
+      const allMainItems = [...mainItems, ...extraMainItems];
 
-    // Assign items to their parent categories
-    categories.forEach((cat, idx) => {
-      const catItems = localItems.filter(item => (cat.items || []).includes(item));
-      if (catItems.length > 0) {
+      if (allMainItems.length > 0) {
         groups.push({
-          id: cat.id,
-          name: cat.name,
-          icon: cat.icon,
-          label: `SECTION ${String.fromCharCode(65 + idx)}: ${cat.name}`,
-          items: catItems,
+          id: 'main',
+          name: event.mainEvent.name || event.eventType || 'Main Event',
+          date: event.mainEvent.date || '',
+          location: event.mainEvent.location || '',
+          items: allMainItems,
         });
-        catItems.forEach(i => assigned.add(i));
       }
-    });
-
-    // Items not belonging to any category go into "Other Services"
-    const otherItems = localItems.filter(item => !assigned.has(item));
-    if (otherItems.length > 0) {
-      groups.push({
-        id: 'other',
-        name: 'Other Services',
-        icon: '',
-        label: `SECTION ${String.fromCharCode(65 + groups.length)}: Other Services`,
-        items: otherItems,
+      (event.subEvents || []).forEach(s => {
+        const subItems = (s.items || []).filter(i => localItems.includes(i));
+        if (subItems.length > 0) {
+          groups.push({
+            id: s.id || s.name,
+            name: s.name || 'Sub Event',
+            date: s.date || '',
+            location: s.location || '',
+            items: subItems,
+          });
+        }
       });
+      return groups;
     }
 
-    return groups;
-  }, [localItems, categories]);
+    // Old format - single group
+    return [{
+      id: 'main',
+      name: event.eventType || 'Event',
+      date: event.date || '',
+      location: event.eventLocation || '',
+      items: localItems,
+    }];
+  }, [event, localItems]);
 
   if (!event) {
     return (
@@ -147,15 +218,24 @@ export default function QuotationGenerator() {
 
   /** Persists the current items and prices back to the event in context */
   const handleSave = () => {
-    updateEvent(eventId, {
-      items: localItems,
-      itemPrices: itemPrices,
-    });
+    // When saving, update the mainEvent items to include any newly added items
+    const updateData = { itemPrices: itemPrices };
+
+    if (event.mainEvent) {
+      // Distribute items back to their respective groups
+      const subEventItems = new Set();
+      (event.subEvents || []).forEach(s => (s.items || []).forEach(i => subEventItems.add(i)));
+      const mainItems = localItems.filter(i => !subEventItems.has(i) || (event.mainEvent.items || []).includes(i));
+      updateData.mainEvent = { ...event.mainEvent, items: mainItems };
+    } else {
+      updateData.items = localItems;
+    }
+
+    updateEvent(eventId, updateData);
     showToast('Quotation saved');
   };
 
   /** Triggers the browser print dialog */
-  const pdfRef = useRef(null);
   const handlePrint = () => window.print();
 
   /** Generates a formatted WhatsApp message with quotation details */
@@ -165,7 +245,8 @@ export default function QuotationGenerator() {
     msg += `To: ${event.clientName}\n`;
     msg += `Date: ${formatDateReadable(new Date().toISOString())}\n\n`;
     msg += `*Event:* ${event.eventType}\n`;
-    msg += `*Event Date:* ${formatDateReadable(event.date)}\n\n`;
+    const mainDate = event.mainEvent?.date || event.date;
+    if (mainDate) msg += `*Event Date:* ${formatDateReadable(mainDate)}\n\n`;
     msg += `*Items:*\n`;
     localItems.forEach((item, i) => {
       const p = itemPrices[item] || { qty: 1, rate: 0 };
@@ -188,6 +269,9 @@ export default function QuotationGenerator() {
       window.open(waLink(phone, generateWhatsAppMsg()), '_blank');
     }
   };
+
+  // Get the main event date for display
+  const displayDate = event.mainEvent?.date || event.date || '';
 
   return (
     <div className="space-y-4 pb-8">
@@ -376,8 +460,8 @@ export default function QuotationGenerator() {
                     <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
                     <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
                       {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
-                      {event.date && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(event.date)}</p>}
-                      {event.eventLocation && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.eventLocation}</p>}
+                      {displayDate && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(displayDate)}</p>}
+                      {(event.mainEvent?.location || event.eventLocation) && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.mainEvent?.location || event.eventLocation}</p>}
                       <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
                       <p style={{margin: 0}}><span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days</p>
                     </div>
@@ -387,9 +471,9 @@ export default function QuotationGenerator() {
             </tbody>
           </table>
 
-          {/* Items grouped by Category */}
+          {/* Items grouped by Event */}
           <div style={{marginBottom: '32px'}}>
-            {groupedItems.map((group, groupIdx) => {
+            {printGroups.map((group) => {
               const sectionSubtotal = group.items.reduce((sum, item) => {
                 const p = itemPrices[item] || { qty: 1, rate: 0 };
                 return sum + (p.qty * p.rate);
@@ -399,10 +483,10 @@ export default function QuotationGenerator() {
 
               return (
                 <div key={group.id} style={{marginBottom: '24px', pageBreakInside: 'avoid'}}>
-                  {/* Section Header */}
+                  {/* Section Header - Event name + date + location */}
                   <div style={{marginBottom: '12px'}}>
                     <h3 style={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90', margin: 0}}>
-                      {group.label}
+                      {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
                     </h3>
                     <div style={{height: '1px', marginTop: '4px', backgroundColor: 'rgba(101, 45, 144, 0.19)'}} />
                   </div>
@@ -441,7 +525,7 @@ export default function QuotationGenerator() {
                       <tr>
                         <td style={{textAlign: 'right'}}>
                           <span style={{padding: '8px 12px', borderRadius: '4px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
-                            <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Section Subtotal</span>
+                            <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Subtotal</span>
                             <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
                           </span>
                         </td>
@@ -453,15 +537,15 @@ export default function QuotationGenerator() {
             })}
           </div>
 
-          {/* Summary Box - All section totals + Grand Total */}
-          {groupedItems.length > 0 && (
+          {/* Summary Box - All event totals + Grand Total */}
+          {printGroups.length > 0 && (
             <div style={{marginBottom: '32px'}}>
               <div style={{border: '1px solid rgba(101, 45, 144, 0.19)', borderRadius: '8px', overflow: 'hidden'}}>
                 <div style={{padding: '8px 16px', backgroundColor: 'rgba(101, 45, 144, 0.08)'}}>
                   <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', margin: 0}}>Summary</p>
                 </div>
                 <div style={{padding: '12px 16px'}}>
-                  {groupedItems.map((group) => {
+                  {printGroups.map((group) => {
                     const sectionTotal = group.items.reduce((sum, item) => {
                       const p = itemPrices[item] || { qty: 1, rate: 0 };
                       return sum + (p.qty * p.rate);
@@ -470,7 +554,7 @@ export default function QuotationGenerator() {
                       <table key={group.id} style={{width: '100%', borderCollapse: 'collapse'}}>
                         <tbody>
                           <tr>
-                            <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 0'}}>{group.label}</td>
+                            <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 0'}}>{group.name}</td>
                             <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(sectionTotal)}</td>
                           </tr>
                         </tbody>
@@ -517,8 +601,8 @@ export default function QuotationGenerator() {
             </div>
           )}
 
-          {/* Fallback if no grouped items (empty state) */}
-          {groupedItems.length === 0 && (
+          {/* Fallback if no items */}
+          {printGroups.length === 0 && (
             <div style={{marginBottom: '32px', textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '13px', fontStyle: 'italic'}}>
               No items added to this quotation yet.
             </div>
