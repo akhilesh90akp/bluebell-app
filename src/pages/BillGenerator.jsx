@@ -105,16 +105,18 @@ export default function BillGenerator() {
 
   // Get items and groups (backward compatible)
   const { allItems, eventGroups } = useMemo(() => event ? getEventItemsData(event) : { allItems: [], eventGroups: [] }, [event]);
-  const itemPrices = event?.itemPrices || {};
+  const storedPrices = event?.itemPrices || {};
 
-  // Calculate subtotal from all item prices
+  // Calculate subtotal from all item prices using eventId::itemName keys with fallback
   const subtotal = useMemo(() => {
-    const prices = itemPrices;
-    return allItems.reduce((s, item) => {
-      const p = prices[item] || { qty: 1, rate: 0 };
-      return s + (p.qty * p.rate);
+    return eventGroups.reduce((total, group) => {
+      return total + group.items.reduce((s, item) => {
+        const key = `${group.id}::${item}`;
+        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
+        return s + (p.qty * p.rate);
+      }, 0);
     }, 0);
-  }, [allItems, event]);
+  }, [eventGroups, event]);
 
   // Apply discount then calculate GST
   const afterDiscount = subtotal - (Number(discount) || 0);
@@ -140,9 +142,14 @@ export default function BillGenerator() {
     msg += `From: ${settings.companyName}\n`;
     msg += `To: ${billToName}\n\n`;
     msg += `*Items:*\n`;
-    allItems.forEach((item, i) => {
-      const p = itemPrices[item] || { qty: 1, rate: 0 };
-      msg += `${i + 1}. ${item} - ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+    let idx = 0;
+    eventGroups.forEach(group => {
+      group.items.forEach(item => {
+        idx++;
+        const key = `${group.id}::${item}`;
+        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
+        msg += `${idx}. ${item} - ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+      });
     });
     msg += `\nSubtotal: ${formatCurrency(subtotal)}`;
     if (discount > 0) msg += `\nDiscount: -${formatCurrency(discount)}`;
@@ -262,7 +269,8 @@ export default function BillGenerator() {
             {eventGroups.map((group) => {
               let slNo = 0;
               const groupSubtotal = group.items.reduce((sum, item) => {
-                const p = itemPrices[item] || { qty: 1, rate: 0 };
+                const key = `${group.id}::${item}`;
+                const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
                 return sum + (p.qty * p.rate);
               }, 0);
 
@@ -293,7 +301,8 @@ export default function BillGenerator() {
                     <tbody>
                       {group.items.map((item) => {
                         slNo++;
-                        const p = itemPrices[item] || { qty: 1, rate: 0 };
+                        const key = `${group.id}::${item}`;
+                        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
                         return (
                           <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
                             <td style={{padding: '10px 8px', color: '#6b7280'}}>{slNo}</td>

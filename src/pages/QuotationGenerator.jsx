@@ -78,15 +78,29 @@ export default function QuotationGenerator() {
   const navigate = useNavigate();
   const event = events.find(e => e.id === eventId);
 
-  // Initialize item prices from existing event data
+  // Initialize item prices from existing event data using eventId::itemName keys
   const [itemPrices, setItemPrices] = useState(() => {
     if (!event) return {};
     const p = {};
-    const { allItems } = event ? getEventItemsData(event) : { allItems: [] };
-    allItems.forEach(item => {
-      const existing = event.itemPrices?.[item];
-      p[item] = existing || { qty: 1, rate: 0 };
-    });
+    const stored = event.itemPrices || {};
+    if (event.mainEvent) {
+      (event.mainEvent.items || []).forEach(item => {
+        const key = `main::${item}`;
+        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+      });
+      (event.subEvents || []).forEach(s => {
+        (s.items || []).forEach(item => {
+          const key = `${s.id}::${item}`;
+          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+        });
+      });
+    } else {
+      // Old format: flat items
+      (event.items || []).forEach(item => {
+        const key = `main::${item}`;
+        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+      });
+    }
     return p;
   });
   const [gstEnabled, setGstEnabled] = useState(false);
@@ -98,8 +112,20 @@ export default function QuotationGenerator() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Local items list tracking (synced from event)
-  const [localItems, setLocalItems] = useState(() => event ? getEventItemsData(event).allItems : []);
+  // Local items list tracking (synced from event) - stores keys in eventId::itemName format
+  const [localItems, setLocalItems] = useState(() => {
+    if (!event) return [];
+    const keys = [];
+    if (event.mainEvent) {
+      (event.mainEvent.items || []).forEach(item => keys.push(`main::${item}`));
+      (event.subEvents || []).forEach(s => {
+        (s.items || []).forEach(item => keys.push(`${s.id}::${item}`));
+      });
+    } else {
+      (event.items || []).forEach(item => keys.push(`main::${item}`));
+    }
+    return keys;
+  });
 
   // Ref for printable section (must be before early return)
   const pdfRef = useRef(null);
@@ -107,20 +133,38 @@ export default function QuotationGenerator() {
   // Sync localItems when event loads (context may load async from Firestore)
   useEffect(() => {
     if (event && localItems.length === 0) {
-      const { allItems } = getEventItemsData(event);
-      setLocalItems(allItems);
+      const keys = [];
       const p = {};
-      allItems.forEach(item => {
-        p[item] = event.itemPrices?.[item] || { qty: 1, rate: 0 };
-      });
+      const stored = event.itemPrices || {};
+      if (event.mainEvent) {
+        (event.mainEvent.items || []).forEach(item => {
+          const key = `main::${item}`;
+          keys.push(key);
+          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+        });
+        (event.subEvents || []).forEach(s => {
+          (s.items || []).forEach(item => {
+            const key = `${s.id}::${item}`;
+            keys.push(key);
+            p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+          });
+        });
+      } else {
+        (event.items || []).forEach(item => {
+          const key = `main::${item}`;
+          keys.push(key);
+          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+        });
+      }
+      setLocalItems(keys);
       setItemPrices(p);
     }
   }, [event]);
 
   // Calculate subtotal from all items
   const subtotal = useMemo(() =>
-    localItems.reduce((s, item) => {
-      const p = itemPrices[item] || { qty: 1, rate: 0 };
+    localItems.reduce((s, key) => {
+      const p = itemPrices[key] || { qty: 1, rate: 0 };
       return s + (p.qty * p.rate);
     }, 0)
   , [localItems, itemPrices]);
@@ -134,31 +178,29 @@ export default function QuotationGenerator() {
     // Use the event structure to determine groups
     if (event.mainEvent) {
       const groups = [];
-      const mainItems = (event.mainEvent.items || []).filter(i => localItems.includes(i));
-      // Also include items that were added and aren't in any sub-event
-      const subEventItems = new Set();
-      (event.subEvents || []).forEach(s => (s.items || []).forEach(i => subEventItems.add(i)));
-      const extraMainItems = localItems.filter(i => !subEventItems.has(i) && !(event.mainEvent.items || []).includes(i));
-      const allMainItems = [...mainItems, ...extraMainItems];
+      // Get item names from localItems keys that belong to main
+      const mainItemKeys = localItems.filter(k => k.startsWith('main::'));
+      const mainItemNames = mainItemKeys.map(k => k.replace('main::', ''));
 
-      if (allMainItems.length > 0) {
+      if (mainItemNames.length > 0) {
         groups.push({
           id: 'main',
           name: event.mainEvent.name || event.eventType || 'Main Event',
           date: event.mainEvent.date || '',
           location: event.mainEvent.location || '',
-          items: allMainItems,
+          items: mainItemNames,
         });
       }
       (event.subEvents || []).forEach(s => {
-        const subItems = (s.items || []).filter(i => localItems.includes(i));
-        if (subItems.length > 0) {
+        const subItemKeys = localItems.filter(k => k.startsWith(`${s.id}::`));
+        const subItemNames = subItemKeys.map(k => k.replace(`${s.id}::`, ''));
+        if (subItemNames.length > 0) {
           groups.push({
             id: s.id || s.name,
             name: s.name || 'Sub Event',
             date: s.date || '',
             location: s.location || '',
-            items: subItems,
+            items: subItemNames,
           });
         }
       });
@@ -166,12 +208,13 @@ export default function QuotationGenerator() {
     }
 
     // Old format - single group
+    const mainItemNames = localItems.map(k => k.replace('main::', ''));
     return [{
       id: 'main',
       name: event.eventType || 'Event',
       date: event.date || '',
       location: event.eventLocation || '',
-      items: localItems,
+      items: mainItemNames,
     }];
   }, [event, localItems]);
 
@@ -184,30 +227,33 @@ export default function QuotationGenerator() {
     );
   }
 
-  /** Adds a custom free-text item to the quotation */
+  /** Adds a custom free-text item to the quotation (added to main event by default) */
   const handleAddItem = () => {
     const name = newItemName.trim();
-    if (!name || localItems.includes(name)) return;
-    const updated = [...localItems, name];
+    if (!name) return;
+    const key = `main::${name}`;
+    if (localItems.includes(key)) return;
+    const updated = [...localItems, key];
     setLocalItems(updated);
-    setItemPrices(p => ({ ...p, [name]: { qty: 1, rate: 0 } }));
+    setItemPrices(p => ({ ...p, [key]: { qty: 1, rate: 0 } }));
     setNewItemName('');
   };
 
-  /** Adds a predefined item from a category to the quotation */
+  /** Adds a predefined item from a category to the quotation (added to main event) */
   const handleAddFromCategory = (itemName) => {
-    if (localItems.includes(itemName)) return;
-    const updated = [...localItems, itemName];
+    const key = `main::${itemName}`;
+    if (localItems.includes(key)) return;
+    const updated = [...localItems, key];
     setLocalItems(updated);
-    setItemPrices(p => ({ ...p, [itemName]: { qty: 1, rate: 0 } }));
+    setItemPrices(p => ({ ...p, [key]: { qty: 1, rate: 0 } }));
   };
 
   /** Removes an item from the quotation and its price data */
-  const handleRemoveItem = (itemName) => {
-    const updated = localItems.filter(i => i !== itemName);
+  const handleRemoveItem = (key) => {
+    const updated = localItems.filter(i => i !== key);
     setLocalItems(updated);
     const newPrices = { ...itemPrices };
-    delete newPrices[itemName];
+    delete newPrices[key];
     setItemPrices(newPrices);
   };
 
@@ -218,17 +264,27 @@ export default function QuotationGenerator() {
 
   /** Persists the current items and prices back to the event in context */
   const handleSave = () => {
-    // When saving, update the mainEvent items to include any newly added items
+    // Save itemPrices with eventId::itemName keys
     const updateData = { itemPrices: itemPrices };
 
     if (event.mainEvent) {
-      // Distribute items back to their respective groups
-      const subEventItems = new Set();
-      (event.subEvents || []).forEach(s => (s.items || []).forEach(i => subEventItems.add(i)));
-      const mainItems = localItems.filter(i => !subEventItems.has(i) || (event.mainEvent.items || []).includes(i));
+      // Reconstruct mainEvent items from localItems keys
+      const mainItems = localItems
+        .filter(k => k.startsWith('main::'))
+        .map(k => k.replace('main::', ''));
       updateData.mainEvent = { ...event.mainEvent, items: mainItems };
+
+      // Reconstruct sub-event items from localItems keys
+      const subEvents = (event.subEvents || []).map(s => {
+        const subItems = localItems
+          .filter(k => k.startsWith(`${s.id}::`))
+          .map(k => k.replace(`${s.id}::`, ''));
+        return { ...s, items: subItems };
+      });
+      updateData.subEvents = subEvents;
     } else {
-      updateData.items = localItems;
+      const items = localItems.map(k => k.replace('main::', ''));
+      updateData.items = items;
     }
 
     updateEvent(eventId, updateData);
@@ -248,9 +304,10 @@ export default function QuotationGenerator() {
     const mainDate = event.mainEvent?.date || event.date;
     if (mainDate) msg += `*Event Date:* ${formatDateReadable(mainDate)}\n\n`;
     msg += `*Items:*\n`;
-    localItems.forEach((item, i) => {
-      const p = itemPrices[item] || { qty: 1, rate: 0 };
-      msg += `${i + 1}. ${item} - Qty: ${p.qty} × ₹${p.rate} = ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+    localItems.forEach((key, i) => {
+      const itemName = key.includes('::') ? key.split('::').slice(1).join('::') : key;
+      const p = itemPrices[key] || { qty: 1, rate: 0 };
+      msg += `${i + 1}. ${itemName} - Qty: ${p.qty} × ₹${p.rate} = ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
     });
     msg += `\n*Subtotal:* ${formatCurrency(subtotal)}`;
     if (gstEnabled) {
@@ -288,31 +345,43 @@ export default function QuotationGenerator() {
         <Card>
           <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Items & Pricing</h3>
           <div className="space-y-2">
-            {localItems.map(item => (
-              <div key={item} className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
-                <p className="flex-1 text-sm text-bb-text truncate">{item}</p>
-                <input
-                  type="number" min="1" placeholder="Qty"
-                  value={itemPrices[item]?.qty === '' ? '' : (itemPrices[item]?.qty || 1)}
-                  onChange={e => setItemPrices(p => ({ ...p, [item]: { ...p[item], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
-                  className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
-                />
-                <span className="text-bb-muted text-sm">×</span>
-                <input
-                  type="number" min="0" placeholder="Rate"
-                  value={itemPrices[item]?.rate || ''}
-                  onChange={e => setItemPrices(p => ({ ...p, [item]: { ...p[item], rate: Number(e.target.value) || 0 } }))}
-                  className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
-                />
-                <button
-                  onClick={() => handleRemoveItem(item)}
-                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                  title="Remove item"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))}
+            {localItems.map(key => {
+              const itemName = key.includes('::') ? key.split('::').slice(1).join('::') : key;
+              const eventPrefix = key.includes('::') ? key.split('::')[0] : 'main';
+              const groupLabel = eventPrefix === 'main'
+                ? (event.mainEvent?.name || event.eventType || 'Main Event')
+                : ((event.subEvents || []).find(s => s.id === eventPrefix)?.name || 'Sub Event');
+              return (
+                <div key={key} className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-bb-text truncate">{itemName}</p>
+                    {printGroups.length > 1 && (
+                      <p className="text-xs text-bb-muted truncate">{groupLabel}</p>
+                    )}
+                  </div>
+                  <input
+                    type="number" min="1" placeholder="Qty"
+                    value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
+                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
+                    className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                  />
+                  <span className="text-bb-muted text-sm">×</span>
+                  <input
+                    type="number" min="0" placeholder="Rate"
+                    value={itemPrices[key]?.rate || ''}
+                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
+                    className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                  />
+                  <button
+                    onClick={() => handleRemoveItem(key)}
+                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    title="Remove item"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              );
+            })}
 
             {localItems.length === 0 && (
               <p className="text-sm text-bb-muted text-center py-4">No items added yet</p>
@@ -373,7 +442,7 @@ export default function QuotationGenerator() {
       <Modal isOpen={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Add from Categories" size="lg">
         <div className="space-y-1 max-h-[60vh] overflow-y-auto">
           {categories.map(cat => {
-            const availableItems = (cat.items || []).filter(i => !localItems.includes(i));
+            const availableItems = (cat.items || []).filter(i => !localItems.includes(`main::${i}`));
             const isExpanded = expandedCategories[cat.id];
             return (
               <div key={cat.id} className="border border-bb-border rounded-lg overflow-hidden">
@@ -475,7 +544,8 @@ export default function QuotationGenerator() {
           <div style={{marginBottom: '32px'}}>
             {printGroups.map((group) => {
               const sectionSubtotal = group.items.reduce((sum, item) => {
-                const p = itemPrices[item] || { qty: 1, rate: 0 };
+                const key = `${group.id}::${item}`;
+                const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
                 return sum + (p.qty * p.rate);
               }, 0);
 
@@ -505,7 +575,8 @@ export default function QuotationGenerator() {
                     <tbody>
                       {group.items.map((item) => {
                         slNo++;
-                        const p = itemPrices[item] || { qty: 1, rate: 0 };
+                        const key = `${group.id}::${item}`;
+                        const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
                         return (
                           <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
                             <td style={{padding: '10px 12px', color: '#9ca3af'}}>{slNo}</td>
@@ -547,7 +618,8 @@ export default function QuotationGenerator() {
                 <div style={{padding: '12px 16px'}}>
                   {printGroups.map((group) => {
                     const sectionTotal = group.items.reduce((sum, item) => {
-                      const p = itemPrices[item] || { qty: 1, rate: 0 };
+                      const key = `${group.id}::${item}`;
+                      const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
                       return sum + (p.qty * p.rate);
                     }, 0);
                     return (

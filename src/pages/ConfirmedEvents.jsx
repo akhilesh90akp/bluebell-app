@@ -89,7 +89,9 @@ export default function ConfirmedEvents() {
         const mainItems = [...(ev.mainEvent.items || [])];
         if (!mainItems.includes(item.trim())) {
           mainItems.push(item.trim());
-          updateEvent(eventId, { mainEvent: { ...ev.mainEvent, items: mainItems } });
+          // Also add keyed price entry
+          const newPrices = { ...(ev.itemPrices || {}), [`main::${item.trim()}`]: { qty: 1, rate: 0 } };
+          updateEvent(eventId, { mainEvent: { ...ev.mainEvent, items: mainItems }, itemPrices: newPrices });
         }
       } else {
         // Add to a sub-event
@@ -103,27 +105,43 @@ export default function ConfirmedEvents() {
           }
           return s;
         });
-        updateEvent(eventId, { subEvents });
+        // Also add keyed price entry
+        const newPrices = { ...(ev.itemPrices || {}), [`${addItemTarget}::${item.trim()}`]: { qty: 1, rate: 0 } };
+        updateEvent(eventId, { subEvents, itemPrices: newPrices });
       }
     } else {
       // Old format: flat items array
       const items = [...(ev.items || [])];
       if (!items.includes(item.trim())) {
         items.push(item.trim());
-        updateEvent(eventId, { items });
+        const newPrices = { ...(ev.itemPrices || {}), [`main::${item.trim()}`]: { qty: 1, rate: 0 } };
+        updateEvent(eventId, { items, itemPrices: newPrices });
       }
     }
     setNewItem('');
   };
 
-  /** Opens the pricing modal with current item prices pre-filled (all items from main + sub) */
+  /** Opens the pricing modal with current item prices pre-filled using eventId::itemName keys */
   const openPriceModal = (ev) => {
-    const allItems = getAllItems(ev);
     const p = {};
-    allItems.forEach(item => {
-      const existing = ev.itemPrices?.[item];
-      p[item] = existing || { qty: 1, rate: 0 };
-    });
+    const stored = ev.itemPrices || {};
+    if (ev.mainEvent) {
+      (ev.mainEvent.items || []).forEach(item => {
+        const key = `main::${item}`;
+        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+      });
+      (ev.subEvents || []).forEach(s => {
+        (s.items || []).forEach(item => {
+          const key = `${s.id}::${item}`;
+          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+        });
+      });
+    } else {
+      (ev.items || []).forEach(item => {
+        const key = `main::${item}`;
+        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
+      });
+    }
     setPrices(p);
     setPriceModal(ev.id);
   };
@@ -262,19 +280,42 @@ export default function ConfirmedEvents() {
                         <div>
                           <p className="text-xs font-semibold text-bb-muted uppercase mb-1.5">Items</p>
                           <div className="space-y-1">
-                            {allItems.map(item => {
-                              const price = ev.itemPrices?.[item];
-                              return (
-                                <div key={item} className="flex items-center justify-between text-sm px-2 py-1 rounded bg-bb-input">
-                                  <span className="text-bb-text">{item}</span>
-                                  {price && price.rate > 0 && (
-                                    <span className="text-bb-muted text-xs">
-                                      {price.qty} × ₹{price.rate.toLocaleString('en-IN')} = ₹{(price.qty * price.rate).toLocaleString('en-IN')}
+                            {(() => {
+                              const stored = ev.itemPrices || {};
+                              // Build keyed items for display grouped by event
+                              const keyedItems = [];
+                              if (ev.mainEvent) {
+                                (ev.mainEvent.items || []).forEach(item => {
+                                  keyedItems.push({ key: `main::${item}`, item, group: ev.mainEvent.name || ev.eventType || 'Main Event' });
+                                });
+                                (ev.subEvents || []).forEach(s => {
+                                  (s.items || []).forEach(item => {
+                                    keyedItems.push({ key: `${s.id}::${item}`, item, group: s.name || 'Sub Event' });
+                                  });
+                                });
+                              } else {
+                                allItems.forEach(item => {
+                                  keyedItems.push({ key: `main::${item}`, item, group: 'Event' });
+                                });
+                              }
+                              const hasMultipleGroups = ev.mainEvent && (ev.subEvents || []).length > 0;
+                              return keyedItems.map(({ key, item, group }) => {
+                                const price = stored[key] || stored[item];
+                                return (
+                                  <div key={key} className="flex items-center justify-between text-sm px-2 py-1 rounded bg-bb-input">
+                                    <span className="text-bb-text">
+                                      {hasMultipleGroups && <span className="text-bb-muted text-xs mr-1">({group})</span>}
+                                      {item}
                                     </span>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                    {price && price.rate > 0 && (
+                                      <span className="text-bb-muted text-xs">
+                                        {price.qty} × ₹{price.rate.toLocaleString('en-IN')} = ₹{(price.qty * price.rate).toLocaleString('en-IN')}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              });
+                            })()}
                           </div>
                         </div>
                       )}
@@ -424,31 +465,44 @@ export default function ConfirmedEvents() {
       {/* Set Prices Modal */}
       <Modal isOpen={!!priceModal} onClose={() => setPriceModal(null)} title="Set Prices" size="lg">
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          {Object.entries(prices).map(([item, val]) => (
-            <div key={item} className="flex items-center gap-3 p-2 bg-bb-input rounded-lg">
-              <p className="flex-1 text-sm text-bb-text truncate">{item}</p>
-              <input
-                type="number"
-                min="1"
-                placeholder="Qty"
-                value={val.qty}
-                onChange={e => setPrices(p => ({ ...p, [item]: { ...p[item], qty: Number(e.target.value) || 1 } }))}
-                className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-center"
-              />
-              <span className="text-bb-muted text-sm">×</span>
-              <input
-                type="number"
-                min="0"
-                placeholder="Rate"
-                value={val.rate || ''}
-                onChange={e => setPrices(p => ({ ...p, [item]: { ...p[item], rate: Number(e.target.value) || 0 } }))}
-                className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
-              />
-              <span className="text-xs text-bb-muted w-20 text-right">
-                = ₹{(val.qty * val.rate).toLocaleString('en-IN')}
-              </span>
-            </div>
-          ))}
+          {Object.entries(prices).map(([key, val]) => {
+            const itemName = key.includes('::') ? key.split('::').slice(1).join('::') : key;
+            const eventPrefix = key.includes('::') ? key.split('::')[0] : 'main';
+            const ev = events.find(e => e.id === priceModal);
+            const groupLabel = eventPrefix === 'main'
+              ? (ev?.mainEvent?.name || ev?.eventType || 'Main Event')
+              : ((ev?.subEvents || []).find(s => s.id === eventPrefix)?.name || 'Sub Event');
+            return (
+              <div key={key} className="flex items-center gap-3 p-2 bg-bb-input rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-bb-text truncate">{itemName}</p>
+                  {Object.keys(prices).length > 1 && ev?.mainEvent && (ev.subEvents || []).length > 0 && (
+                    <p className="text-xs text-bb-muted truncate">{groupLabel}</p>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Qty"
+                  value={val.qty}
+                  onChange={e => setPrices(p => ({ ...p, [key]: { ...p[key], qty: Number(e.target.value) || 1 } }))}
+                  className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-center"
+                />
+                <span className="text-bb-muted text-sm">×</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Rate"
+                  value={val.rate || ''}
+                  onChange={e => setPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
+                  className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                />
+                <span className="text-xs text-bb-muted w-20 text-right">
+                  = ₹{(val.qty * val.rate).toLocaleString('en-IN')}
+                </span>
+              </div>
+            );
+          })}
 
           {/* Total and save */}
           <div className="pt-3 border-t border-bb-border flex justify-between items-center">

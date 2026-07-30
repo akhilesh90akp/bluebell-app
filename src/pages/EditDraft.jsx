@@ -258,6 +258,33 @@ export default function EditDraft() {
   /** Validates and updates the event, then navigates back */
   const handleSubmit = () => {
     if (!validate()) return;
+
+    // Migrate itemPrices to new eventId::itemName key format
+    const oldPrices = event.itemPrices || {};
+    const newPrices = {};
+    // Migrate main event items
+    mainEvent.items.forEach(item => {
+      const key = `main::${item}`;
+      if (oldPrices[key]) {
+        newPrices[key] = oldPrices[key];
+      } else if (oldPrices[item]) {
+        // Backward compat: migrate old plain-key to new format
+        newPrices[key] = oldPrices[item];
+      }
+    });
+    // Migrate sub-event items
+    subEvents.forEach(s => {
+      (s.items || []).forEach(item => {
+        const key = `${s.id}::${item}`;
+        if (oldPrices[key]) {
+          newPrices[key] = oldPrices[key];
+        } else if (oldPrices[item]) {
+          // Backward compat: migrate old plain-key to new format
+          newPrices[key] = oldPrices[item];
+        }
+      });
+    });
+
     updateEvent(eventId, {
       clientName: form.clientName.trim(),
       clientPhone: form.clientPhone.trim(),
@@ -281,7 +308,7 @@ export default function EditDraft() {
         location: s.location.trim(),
         items: s.items,
       })),
-      itemPrices: event.itemPrices || {},
+      itemPrices: newPrices,
     });
     showToast('Changes saved');
     navigate('/drafts', { replace: true });
