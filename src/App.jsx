@@ -39,7 +39,7 @@ function AppRoutes() {
 
   // Authenticated - show main app
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/bluebell-app">
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
