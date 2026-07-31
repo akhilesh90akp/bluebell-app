@@ -234,7 +234,7 @@ export default function BillGenerator() {
               <td colSpan="3" style={{verticalAlign: 'top', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6', padding: '8px 16px'}}>
                 <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span> — Event Planners LLP<br/>
                 297/6, Keerikkattil, Karukappilly PO, Kolenchery, Ernakulam, Kerala, 682311<br/>
-                Ph: {settings.phone}{settings.gstin && <> &nbsp;|&nbsp; GSTIN/UIN: {settings.gstin}</>}
+                Ph: {settings.phone} &nbsp;|&nbsp; GSTIN: {settings.gstin}
               </td>
             </tr>
 
@@ -244,15 +244,18 @@ export default function BillGenerator() {
             {/* Row 4: Bill To / Date */}
             <tr>
               <td colSpan="3" style={{verticalAlign: 'top', padding: '8px 16px'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bill To</span><br/>
-                <span style={{fontSize: '15px', fontWeight: '600', color: '#111827'}}>{billToName}</span>
-                {billToAddress && <><br/><span style={{fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line'}}>{billToAddress}</span></>}
+                <div style={{borderLeft: '3px solid #e9d5ff', paddingLeft: '12px'}}>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bill To</span><br/>
+                  <span style={{fontSize: '15px', fontWeight: '600', color: '#111827'}}>{billToName}</span>
+                  {billToAddress && <><br/><span style={{fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line'}}>{billToAddress}</span></>}
+                </div>
               </td>
               <td colSpan="3" style={{verticalAlign: 'top', textAlign: 'right', padding: '8px 16px'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Date</span><br/>
-                <span style={{fontSize: '13px', fontWeight: '500', color: '#1f2937'}}>{formatDateReadable(invoiceDate)}</span><br/>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginTop: '8px', display: 'inline-block'}}>Invoice #</span><br/>
-                <span style={{fontSize: '13px', fontWeight: '500', color: '#1f2937'}}>{invoiceNo}</span>
+                <div style={{borderLeft: '3px solid #e9d5ff', paddingLeft: '12px', textAlign: 'left'}}>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Invoice Details</span><br/>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Date:</span> <span style={{fontSize: '13px', fontWeight: '500', color: '#1f2937'}}>{formatDateReadable(invoiceDate)}</span><br/>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Invoice #:</span> <span style={{fontSize: '13px', fontWeight: '500', color: '#1f2937'}}>{invoiceNo}</span>
+                </div>
               </td>
             </tr>
 
@@ -321,67 +324,106 @@ export default function BillGenerator() {
               );
             })}
 
-            {/* Spacer before totals/bank/terms */}
+            {/* Spacer before summary */}
             <tr><td colSpan="6" style={{padding: '8px 0'}} /></tr>
 
-            {/* Totals - Right aligned */}
+            {/* Summary Box - matching quotation style */}
             <tr>
-              <td colSpan="6" style={{padding: '8px 16px'}}>
-                <table style={{width: '50%', marginLeft: 'auto', borderCollapse: 'collapse'}}>
+              <td colSpan="6" style={{padding: '0 16px'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse', borderLeft: '3px solid #652D90', borderRadius: '8px', overflow: 'hidden'}}>
                   <tbody>
-                    <tr>
-                      <td style={{fontSize: '12px', color: '#6b7280', padding: '6px 8px'}}>Subtotal</td>
-                      <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '6px 8px'}}>{formatCurrency(subtotal)}</td>
+                    <tr style={{backgroundColor: '#f5f0fa'}}>
+                      <td colSpan="2" style={{padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Summary</td>
+                    </tr>
+                    {eventGroups.map((group) => {
+                      const groupTotal = group.items.reduce((sum, item) => {
+                        const key = `${group.id}::${item}`;
+                        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
+                        return sum + (p.qty * p.rate);
+                      }, 0);
+                      return (
+                        <tr key={group.id}>
+                          <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 16px'}}>{group.name}</td>
+                          <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(groupTotal)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{borderTop: '1px solid #e5e7eb'}}>
+                      <td style={{fontSize: '13px', color: '#6b7280', padding: '8px 16px'}}>Subtotal</td>
+                      <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(subtotal)}</td>
                     </tr>
                     {Number(discount) > 0 && (
                       <tr>
-                        <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>Discount</td>
-                        <td style={{fontSize: '12px', color: '#dc2626', textAlign: 'right', padding: '4px 8px'}}>-{formatCurrency(discount)}</td>
+                        <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>Discount</td>
+                        <td style={{fontSize: '13px', color: '#dc2626', textAlign: 'right', padding: '4px 16px'}}>-{formatCurrency(discount)}</td>
                       </tr>
                     )}
                     {gstEnabled && !interState && (
                       <>
                         <tr>
-                          <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>CGST ({Number(gstRate)/2}%)</td>
-                          <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.cgst)}</td>
+                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>CGST ({Number(gstRate)/2}%)</td>
+                          <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(gstData.cgst)}</td>
                         </tr>
                         <tr>
-                          <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>SGST ({Number(gstRate)/2}%)</td>
-                          <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.sgst)}</td>
+                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>SGST ({Number(gstRate)/2}%)</td>
+                          <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(gstData.sgst)}</td>
                         </tr>
                       </>
                     )}
                     {gstEnabled && interState && (
                       <tr>
-                        <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>IGST ({gstRate}%)</td>
-                        <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.igst)}</td>
+                        <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>IGST ({gstRate}%)</td>
+                        <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(gstData.igst)}</td>
                       </tr>
                     )}
-                    <tr style={{borderTop: '2px solid #1f2937'}}>
-                      <td style={{fontSize: '14px', fontWeight: 'bold', color: '#1f2937', padding: '8px 8px 4px'}}><strong>TOTAL</strong></td>
-                      <td style={{fontSize: '14px', fontWeight: 'bold', color: '#1f2937', textAlign: 'right', padding: '8px 8px 4px'}}><strong>{formatCurrency(rounded.rounded)}</strong></td>
+                    <tr style={{borderTop: '2px solid #652D90'}}>
+                      <td style={{fontSize: '17px', fontWeight: 'bold', color: '#111827', padding: '10px 16px'}}>GRAND TOTAL</td>
+                      <td style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90', textAlign: 'right', padding: '10px 16px'}}>{formatCurrency(rounded.rounded)}</td>
                     </tr>
                   </tbody>
                 </table>
               </td>
             </tr>
 
-            {/* Bank Account Details - full width */}
-            <tr><td colSpan="6" style={{borderTop: '1px solid #e5e7eb', padding: '12px 16px 4px'}}>
-              <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bank Account Details</span>
-            </td></tr>
-            <tr><td colSpan="6" style={{padding: '0 16px 8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-              Account Name: <strong>{settings.bankDetails?.accountName}</strong> &nbsp;|&nbsp; A/C No: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</strong><br/>
-              Bank: {settings.bankDetails?.bankName}, {settings.bankDetails?.branch} &nbsp;|&nbsp; IFSC: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</strong>
-            </td></tr>
+            {/* Spacer before bank details */}
+            <tr><td colSpan="6" style={{padding: '8px 0'}} /></tr>
 
-            {/* Terms & Conditions - full width */}
-            <tr><td colSpan="6" style={{borderTop: '1px solid #e5e7eb', padding: '12px 16px 4px'}}>
-              <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Terms & Conditions</span>
-            </td></tr>
-            <tr><td colSpan="6" style={{padding: '0 16px 12px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-              {settings.termsAndConditions?.map((t, i) => <span key={i}>{i+1}. {t}<br/></span>)}
-            </td></tr>
+            {/* Bank Account Details */}
+            <tr>
+              <td colSpan="6" style={{padding: '8px 16px', borderTop: '1px solid #f3f4f6'}}>
+                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Bank Account Details</span>
+                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                  <tbody>
+                    <tr>
+                      <td>Account Name: <strong>{settings.bankDetails?.accountName}</strong> &nbsp;|&nbsp; A/C No: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</strong></td>
+                    </tr>
+                    <tr>
+                      <td>Bank: {settings.bankDetails?.bankName}, {settings.bankDetails?.branch} &nbsp;|&nbsp; IFSC: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+
+            {/* Spacer before terms */}
+            <tr><td colSpan="6" style={{padding: '4px 0'}} /></tr>
+
+            {/* Terms & Conditions - bullet style matching quotation */}
+            <tr>
+              <td colSpan="6" style={{padding: '8px 16px', borderTop: '1px solid #f3f4f6'}}>
+                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Terms & Conditions</span>
+                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                  <tbody>
+                    {settings.termsAndConditions?.map((t, i) => (
+                      <tr key={i}>
+                        <td style={{verticalAlign: 'top', width: '12px', paddingBottom: '6px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                        <td style={{verticalAlign: 'top', paddingBottom: '6px'}}>{t}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
 
             {/* Make checks payable */}
             <tr>
@@ -392,7 +434,7 @@ export default function BillGenerator() {
 
             {/* Contact line */}
             <tr>
-              <td colSpan="6" style={{borderTop: '1px solid #f3f4f6', padding: '16px', textAlign: 'center'}}>
+              <td colSpan="6" style={{padding: '8px 16px', textAlign: 'center'}}>
                 <span style={{fontSize: '11px', color: '#9ca3af'}}>
                   If you have any questions about this invoice, please contact{' '}
                   <span style={{color: '#4b5563'}}>{settings.companyName}</span>,{' '}
@@ -401,9 +443,9 @@ export default function BillGenerator() {
               </td>
             </tr>
 
-            {/* Thank You Footer */}
+            {/* Thank You Footer - tinted bar like quotation's validity bar */}
             <tr>
-              <td colSpan="6" style={{textAlign: 'center', padding: '16px', borderTop: '1px solid #e5e7eb'}}>
+              <td colSpan="6" style={{textAlign: 'center', padding: '12px 16px', backgroundColor: 'rgba(101, 45, 144, 0.03)', borderTop: '1px solid #e5e7eb'}}>
                 <span style={{fontSize: '13px', fontWeight: '600', color: '#374151', letterSpacing: '0.05em'}}>
                   {settings.thankYouMessage || 'Thank You For Your Business!'}
                 </span>

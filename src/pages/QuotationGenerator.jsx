@@ -503,7 +503,7 @@ export default function QuotationGenerator() {
               <td colSpan="2" style={{verticalAlign: 'top', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6', padding: '8px 16px'}}>
                 <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span> — Event Planners LLP<br/>
                 297/6, Keerikkattil, Karukappilly PO, Kolenchery, Ernakulam, Kerala, 682311<br/>
-                Ph: {settings.phone}{settings.gstin && <> &nbsp;|&nbsp; GSTIN: {settings.gstin}</>}
+                Ph: {settings.phone} &nbsp;|&nbsp; GSTIN: {settings.gstin}
               </td>
             </tr>
 
@@ -513,18 +513,22 @@ export default function QuotationGenerator() {
             {/* Row 4: Client info left, Event details right */}
             <tr>
               <td colSpan="3" style={{verticalAlign: 'top', padding: '8px 16px'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bill To / Client</span><br/>
-                <span style={{fontSize: '13px', fontWeight: '600', color: '#111827'}}>{event.clientName}</span>
-                {event.clientPhone && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>Phone: {event.clientPhone}</span></>}
-                {event.clientAddress && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>{event.clientAddress}</span></>}
+                <div style={{borderLeft: '3px solid #e9d5ff', paddingLeft: '12px'}}>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bill To / Client</span><br/>
+                  <span style={{fontSize: '13px', fontWeight: '600', color: '#111827'}}>{event.clientName}</span>
+                  {event.clientPhone && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>Phone: {event.clientPhone}</span></>}
+                  {event.clientAddress && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>{event.clientAddress}</span></>}
+                </div>
               </td>
               <td colSpan="2" style={{verticalAlign: 'top', padding: '8px 16px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Event Details</span><br/>
-                {event.eventType && <><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}<br/></>}
-                {displayDate && <><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(displayDate)}<br/></>}
-                {(event.mainEvent?.location || event.eventLocation) && <><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.mainEvent?.location || event.eventLocation}<br/></>}
-                <span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}<br/>
-                <span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days
+                <div style={{borderLeft: '3px solid #e9d5ff', paddingLeft: '12px'}}>
+                  <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Event Details</span><br/>
+                  {event.eventType && <><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}<br/></>}
+                  {displayDate && <><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(displayDate)}<br/></>}
+                  {(event.mainEvent?.location || event.eventLocation) && <><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.mainEvent?.location || event.eventLocation}<br/></>}
+                  <span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}<br/>
+                  <span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days
+                </div>
               </td>
             </tr>
 
@@ -609,9 +613,9 @@ export default function QuotationGenerator() {
                 {/* Summary header */}
                 <tr>
                   <td colSpan="5" style={{padding: '0 16px'}}>
-                    <table style={{width: '100%', borderCollapse: 'collapse', border: '1px solid rgba(101, 45, 144, 0.19)', borderRadius: '8px'}}>
+                    <table style={{width: '100%', borderCollapse: 'collapse', borderLeft: '3px solid #652D90', borderRadius: '8px', overflow: 'hidden'}}>
                       <tbody>
-                        <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.08)'}}>
+                        <tr style={{backgroundColor: '#f5f0fa'}}>
                           <td colSpan="2" style={{padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Summary</td>
                         </tr>
                         {printGroups.map((group) => {
