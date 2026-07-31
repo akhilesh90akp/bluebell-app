@@ -354,13 +354,13 @@ export default function ConfirmedEvents() {
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-bb-border">
                         {ev.clientPhone && (
                           <a href={telLink(ev.clientPhone)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
                             <Phone size={14} /> Call
                           </a>
                         )}
                         {(ev.clientWhatsapp || ev.clientPhone) && (
                           <a href={waLink(ev.clientWhatsapp || ev.clientPhone)} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
                             <MessageSquare size={14} /> WhatsApp
                           </a>
                         )}
@@ -372,29 +372,39 @@ export default function ConfirmedEvents() {
                         {ev.status === 'confirmed' && (
                           <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
                         )}
-                        <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
+                        <Button size="sm" variant="outline" icon={Trash2} className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => setDeleteId(ev.id)}>Delete</Button>
                       </div>
                     </div>
                   )}
 
                   {/* Action Buttons - Always visible in collapsed view */}
                   {!isExpanded && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-bb-border">
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-bb-border">
                       {ev.clientPhone && (
                         <a href={telLink(ev.clientPhone)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
                           <Phone size={14} /> Call
                         </a>
                       )}
+                      {(ev.clientWhatsapp || ev.clientPhone) && (
+                        <a href={waLink(ev.clientWhatsapp || ev.clientPhone)} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
+                          <MessageSquare size={14} /> WhatsApp
+                        </a>
+                      )}
+                      <span className="w-px h-5 bg-bb-border" />
+                      <Button size="sm" variant="ghost" icon={Edit3} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
+                      <Button size="sm" variant="outline" icon={Trash2} className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => setDeleteId(ev.id)}>Delete</Button>
+                      <span className="w-px h-5 bg-bb-border" />
+                      <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setAddItemModal(ev.id); setAddItemTarget('main'); }}>Add Item</Button>
+                      <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
+                      <span className="w-px h-5 bg-bb-border" />
+                      <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
+                      <Button size="sm" variant="secondary" icon={Receipt} onClick={() => navigate(`/bill/${ev.id}`)}>Bill</Button>
+                      <span className="w-px h-5 bg-bb-border" />
                       {ev.status === 'confirmed' && (
                         <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
                       )}
-                      <Button size="sm" variant="ghost" icon={Edit3} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
-                      <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setAddItemModal(ev.id); setAddItemTarget('main'); }}>Add Item</Button>
-                      <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
-                      <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
-                      <Button size="sm" variant="secondary" icon={Receipt} onClick={() => navigate(`/bill/${ev.id}`)}>Bill</Button>
-                      <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
                     </div>
                   )}
                 </div>

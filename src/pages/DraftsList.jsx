@@ -245,20 +245,20 @@ export default function DraftsList() {
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-bb-border">
                         {ev.clientPhone && (
                           <a href={telLink(ev.clientPhone)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
                             <Phone size={14} /> Call
                           </a>
                         )}
                         {(ev.clientWhatsapp || ev.clientPhone) && (
                           <a href={waLink(ev.clientWhatsapp || ev.clientPhone)} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors">
                             <MessageSquare size={14} /> WhatsApp
                           </a>
                         )}
                         <Button size="sm" variant="secondary" icon={Edit} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
                         <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
                         <Button size="sm" variant="success" icon={CheckCircle} onClick={() => confirmEvent(ev.id)}>Confirm</Button>
-                        <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
+                        <Button size="sm" variant="outline" icon={Trash2} className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => setDeleteId(ev.id)}>Delete</Button>
                       </div>
                     </div>
                   )}
@@ -269,7 +269,7 @@ export default function DraftsList() {
                       <Button size="sm" variant="secondary" icon={Edit} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
                       <Button size="sm" variant="secondary" icon={FileText} onClick={() => navigate(`/quotation/${ev.id}`)}>Quote</Button>
                       <Button size="sm" variant="success" icon={CheckCircle} onClick={() => confirmEvent(ev.id)}>Confirm</Button>
-                      <Button size="sm" variant="danger" icon={Trash2} onClick={() => setDeleteId(ev.id)}>Delete</Button>
+                      <Button size="sm" variant="outline" icon={Trash2} className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => setDeleteId(ev.id)}>Delete</Button>
                     </div>
                   )}
                 </div>
