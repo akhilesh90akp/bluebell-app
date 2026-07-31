@@ -516,12 +516,12 @@ export default function QuotationGenerator() {
           <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '12px'}} />
 
           {/* From / To - side by side */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '8px'}}>
             <tbody>
               <tr>
                 {/* To (Client) */}
                 <td style={{verticalAlign: 'top', width: '50%', paddingRight: '12px'}}>
-                  <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+                  <div style={{padding: '0'}}>
                     <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bill To / Client</p>
                     <p style={{fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 4px'}}>{event.clientName}</p>
                     {event.clientPhone && <p style={{fontSize: '11px', color: '#4b5563', margin: '0 0 2px'}}>Phone: {event.clientPhone}</p>}
@@ -530,7 +530,7 @@ export default function QuotationGenerator() {
                 </td>
                 {/* Event Details */}
                 <td style={{verticalAlign: 'top', width: '50%', paddingLeft: '12px'}}>
-                  <div style={{border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px'}}>
+                  <div style={{padding: '0'}}>
                     <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
                     <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
                       {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
