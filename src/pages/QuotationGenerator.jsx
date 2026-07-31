@@ -501,12 +501,9 @@ export default function QuotationGenerator() {
                 <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '36px', width: 'auto'}} />
               </td>
               <td colSpan="2" style={{verticalAlign: 'top', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6', padding: '8px 16px'}}>
-                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span><br/>
-                Event Planners LLP<br/>
-                297/6, Keerikkattil, Karukappilly PO,<br/>
-                Kolenchery, Ernakulam, Kerala, 682311<br/>
-                Ph: {settings.phone}<br/>
-                {settings.gstin && <>GSTIN: {settings.gstin}</>}
+                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span> — Event Planners LLP<br/>
+                297/6, Keerikkattil, Karukappilly PO, Kolenchery, Ernakulam, Kerala, 682311<br/>
+                Ph: {settings.phone}{settings.gstin && <> &nbsp;|&nbsp; GSTIN: {settings.gstin}</>}
               </td>
             </tr>
 

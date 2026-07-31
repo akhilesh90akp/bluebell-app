@@ -232,12 +232,9 @@ export default function BillGenerator() {
                 <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '36px', width: 'auto'}} />
               </td>
               <td colSpan="3" style={{verticalAlign: 'top', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6', padding: '8px 16px'}}>
-                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span><br/>
-                Event Planners LLP<br/>
-                297/6, Keerikkattil, Karukappilly PO,<br/>
-                Kolenchery, Ernakulam, Kerala, 682311<br/>
-                Ph: {settings.phone}<br/>
-                {settings.gstin && <>GSTIN/UIN: {settings.gstin}</>}
+                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span> — Event Planners LLP<br/>
+                297/6, Keerikkattil, Karukappilly PO, Kolenchery, Ernakulam, Kerala, 682311<br/>
+                Ph: {settings.phone}{settings.gstin && <> &nbsp;|&nbsp; GSTIN/UIN: {settings.gstin}</>}
               </td>
             </tr>
 
@@ -327,76 +324,64 @@ export default function BillGenerator() {
             {/* Spacer before totals/bank/terms */}
             <tr><td colSpan="6" style={{padding: '8px 0'}} /></tr>
 
-            {/* Bank Details + Terms + Totals in one row */}
+            {/* Totals - Right aligned */}
             <tr>
-              {/* Bank Details - Left */}
-              <td colSpan="2" style={{verticalAlign: 'top', padding: '8px 16px'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bank Account Details</span>
-                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                  <tbody>
-                    <tr><td style={{color: '#6b7280', paddingBottom: '3px'}}>Account Name:</td><td style={{color: '#1f2937', paddingBottom: '3px'}}>{settings.bankDetails?.accountName}</td></tr>
-                    <tr><td style={{color: '#6b7280', paddingBottom: '3px'}}>A/C No:</td><td style={{color: '#1f2937', fontFamily: 'monospace', paddingBottom: '3px'}}>{settings.bankDetails?.accountNo}</td></tr>
-                    <tr><td style={{color: '#6b7280', paddingBottom: '3px'}}>Bank:</td><td style={{color: '#1f2937', paddingBottom: '3px'}}>{settings.bankDetails?.bankName}</td></tr>
-                    <tr><td style={{color: '#6b7280', paddingBottom: '3px'}}>Branch:</td><td style={{color: '#1f2937', paddingBottom: '3px'}}>{settings.bankDetails?.branch}</td></tr>
-                    <tr><td style={{color: '#6b7280'}}>IFSC Code:</td><td style={{color: '#1f2937', fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</td></tr>
-                  </tbody>
-                </table>
-              </td>
-
-              {/* Terms - Center */}
-              <td colSpan="2" style={{verticalAlign: 'top', padding: '8px 12px'}}>
-                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Terms & Conditions</span>
-                <ol style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: '8px 0 0', paddingLeft: '16px'}}>
-                  {settings.termsAndConditions?.map((t, i) => <li key={i} style={{marginBottom: '3px'}}>{t}</li>)}
-                </ol>
-              </td>
-
-              {/* Totals - Right */}
-              <td colSpan="2" style={{verticalAlign: 'top', padding: '8px 16px'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse', backgroundColor: '#f9fafb', borderRadius: '8px'}}>
+              <td colSpan="6" style={{padding: '8px 16px'}}>
+                <table style={{width: '50%', marginLeft: 'auto', borderCollapse: 'collapse'}}>
                   <tbody>
                     <tr>
-                      <td style={{fontSize: '13px', color: '#6b7280', padding: '12px 12px 6px'}}>Subtotal</td>
-                      <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '12px 12px 6px'}}>{formatCurrency(subtotal)}</td>
+                      <td style={{fontSize: '12px', color: '#6b7280', padding: '6px 8px'}}>Subtotal</td>
+                      <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '6px 8px'}}>{formatCurrency(subtotal)}</td>
                     </tr>
                     {Number(discount) > 0 && (
                       <tr>
-                        <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 12px'}}>Discount</td>
-                        <td style={{fontSize: '13px', color: '#dc2626', textAlign: 'right', padding: '4px 12px'}}>-{formatCurrency(discount)}</td>
+                        <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>Discount</td>
+                        <td style={{fontSize: '12px', color: '#dc2626', textAlign: 'right', padding: '4px 8px'}}>-{formatCurrency(discount)}</td>
                       </tr>
                     )}
                     {gstEnabled && !interState && (
                       <>
                         <tr>
-                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 12px'}}>CGST ({Number(gstRate)/2}%)</td>
-                          <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 12px'}}>{formatCurrency(gstData.cgst)}</td>
+                          <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>CGST ({Number(gstRate)/2}%)</td>
+                          <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.cgst)}</td>
                         </tr>
                         <tr>
-                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 12px'}}>SGST ({Number(gstRate)/2}%)</td>
-                          <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 12px'}}>{formatCurrency(gstData.sgst)}</td>
+                          <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>SGST ({Number(gstRate)/2}%)</td>
+                          <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.sgst)}</td>
                         </tr>
                       </>
                     )}
                     {gstEnabled && interState && (
                       <tr>
-                        <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 12px'}}>IGST ({gstRate}%)</td>
-                        <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 12px'}}>{formatCurrency(gstData.igst)}</td>
+                        <td style={{fontSize: '12px', color: '#6b7280', padding: '4px 8px'}}>IGST ({gstRate}%)</td>
+                        <td style={{fontSize: '12px', color: '#1f2937', textAlign: 'right', padding: '4px 8px'}}>{formatCurrency(gstData.igst)}</td>
                       </tr>
                     )}
-                    {rounded.diff !== 0 && (
-                      <tr>
-                        <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 12px'}}>Round off</td>
-                        <td style={{fontSize: '13px', color: '#4b5563', textAlign: 'right', padding: '4px 12px'}}>{rounded.diff > 0 ? '+' : ''}{rounded.diff.toFixed(2)}</td>
-                      </tr>
-                    )}
-                    <tr style={{borderTop: '2px solid #111827'}}>
-                      <td style={{fontSize: '15px', fontWeight: 'bold', color: '#111827', padding: '10px 12px'}}>TOTAL</td>
-                      <td style={{fontSize: '15px', fontWeight: 'bold', color: '#111827', textAlign: 'right', padding: '10px 12px'}}>{formatCurrency(rounded.rounded)}</td>
+                    <tr style={{borderTop: '2px solid #1f2937'}}>
+                      <td style={{fontSize: '14px', fontWeight: 'bold', color: '#1f2937', padding: '8px 8px 4px'}}><strong>TOTAL</strong></td>
+                      <td style={{fontSize: '14px', fontWeight: 'bold', color: '#1f2937', textAlign: 'right', padding: '8px 8px 4px'}}><strong>{formatCurrency(rounded.rounded)}</strong></td>
                     </tr>
                   </tbody>
                 </table>
               </td>
             </tr>
+
+            {/* Bank Account Details - full width */}
+            <tr><td colSpan="6" style={{borderTop: '1px solid #e5e7eb', padding: '12px 16px 4px'}}>
+              <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bank Account Details</span>
+            </td></tr>
+            <tr><td colSpan="6" style={{padding: '0 16px 8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+              Account Name: <strong>{settings.bankDetails?.accountName}</strong> &nbsp;|&nbsp; A/C No: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</strong><br/>
+              Bank: {settings.bankDetails?.bankName}, {settings.bankDetails?.branch} &nbsp;|&nbsp; IFSC: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</strong>
+            </td></tr>
+
+            {/* Terms & Conditions - full width */}
+            <tr><td colSpan="6" style={{borderTop: '1px solid #e5e7eb', padding: '12px 16px 4px'}}>
+              <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Terms & Conditions</span>
+            </td></tr>
+            <tr><td colSpan="6" style={{padding: '0 16px 12px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+              {settings.termsAndConditions?.map((t, i) => <span key={i}>{i+1}. {t}<br/></span>)}
+            </td></tr>
 
             {/* Make checks payable */}
             <tr>
