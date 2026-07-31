@@ -216,20 +216,20 @@ export default function BillGenerator() {
 
       {/* === Invoice Preview - printable document === */}
       <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
-        <div style={{padding: '20px'}}>
+        <div style={{padding: '12px 16px'}}>
 
           {/* INVOICE title at top center */}
-          <div style={{textAlign: 'center', marginBottom: '16px'}}>
-            <h1 style={{fontSize: '24px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#111827', margin: 0}}>INVOICE</h1>
-            <div style={{height: '2px', width: '80px', margin: '8px auto 0', backgroundColor: '#111827'}} />
+          <div style={{textAlign: 'center', marginBottom: '10px'}}>
+            <h1 style={{fontSize: '18px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#111827', margin: 0}}>INVOICE</h1>
+            <div style={{height: '2px', width: '60px', margin: '6px auto 0', backgroundColor: '#111827'}} />
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '10px'}}>
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
-                  <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '48px', width: 'auto'}} />
+                  <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '36px', width: 'auto'}} />
                 </td>
                 <td style={{verticalAlign: 'top', width: '50%', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
                   <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
@@ -244,10 +244,10 @@ export default function BillGenerator() {
           </table>
 
           {/* Thin separator */}
-          <div style={{borderTop: '1px solid #e5e7eb', marginBottom: '12px'}} />
+          <div style={{borderTop: '1px solid #e5e7eb', marginBottom: '8px'}} />
 
           {/* Invoice details row */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '10px'}}>
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
