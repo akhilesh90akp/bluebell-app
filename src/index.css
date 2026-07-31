@@ -74,7 +74,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border: none !important;
   }
 
-  table { page-break-inside: auto; }
-  tr { page-break-inside: avoid; }
+  table { page-break-inside: auto !important; }
+  tr { page-break-inside: auto !important; page-break-after: auto !important; }
   .bg-white { background: white !important; box-shadow: none !important; border-radius: 0 !important; }
 }

@@ -292,7 +292,7 @@ export default function BillGenerator() {
                   )}
 
                   {/* Items Table */}
-                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px', pageBreakInside: 'auto'}}>
                     <thead>
                       <tr style={{borderBottom: '2px solid #111827'}}>
                         <th style={{padding: '10px 8px', textAlign: 'left', fontWeight: '600', color: '#374151', width: '40px'}}>No.</th>
@@ -428,7 +428,7 @@ export default function BillGenerator() {
           </p>
 
           {/* Contact line */}
-          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginBottom: '24px'}}>
+          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginBottom: '24px', pageBreakInside: 'auto'}}>
             <p style={{fontSize: '11px', color: '#9ca3af', textAlign: 'center', margin: 0}}>
               If you have any questions about this invoice, please contact{' '}
               <span style={{color: '#4b5563'}}>{settings.companyName}</span>,{' '}

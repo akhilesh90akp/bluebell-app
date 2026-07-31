@@ -567,7 +567,7 @@ export default function QuotationGenerator() {
                   </div>
 
                   {/* Section Table */}
-                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px', pageBreakInside: 'auto'}}>
                     <thead>
                       <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.06)'}}>
                         <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', width: '40px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Sl.</th>
@@ -686,7 +686,7 @@ export default function QuotationGenerator() {
           )}
 
           {/* Terms & Conditions */}
-          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '24px', marginBottom: '24px'}}>
+          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '24px', marginBottom: '24px', pageBreakInside: 'auto'}}>
             <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', marginBottom: '12px'}}>Terms & Conditions</p>
             <ul style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: 0, padding: 0, listStyle: 'none'}}>
               <li style={{marginBottom: '6px'}}>
