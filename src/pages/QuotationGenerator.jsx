@@ -504,7 +504,7 @@ export default function QuotationGenerator() {
                 Ph: {settings.phone} | GSTIN: {settings.gstin}
               </td>
               <td colSpan="2" style={{verticalAlign: 'top', textAlign: 'right', padding: '12px 24px'}}>
-                <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '40px', width: 'auto'}} />
+                <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '40px', width: 'auto', marginLeft: 'auto', display: 'block'}} />
               </td>
             </tr>
 

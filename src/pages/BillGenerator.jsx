@@ -433,14 +433,14 @@ export default function BillGenerator() {
 
             {/* Make checks payable */}
             <tr>
-              <td colSpan="6" style={{padding: '6px 24px', fontSize: '11px', color: '#6b7280', borderTop: '1px solid #e5e7eb', textAlign: 'center'}}>
+              <td colSpan="6" style={{padding: '12px 24px 2px', fontSize: '11px', color: '#6b7280', borderTop: '1px solid #e5e7eb', textAlign: 'center'}}>
                 Make all checks payable to "<span style={{fontWeight: '600', color: '#1f2937'}}>{settings.companyName}</span>"
               </td>
             </tr>
 
             {/* Contact line */}
             <tr>
-              <td colSpan="6" style={{padding: '6px 24px', textAlign: 'center'}}>
+              <td colSpan="6" style={{padding: '2px 24px 12px', textAlign: 'center'}}>
                 <span style={{fontSize: '11px', color: '#6b7280'}}>
                   If you have any questions about this invoice, please contact{' '}
                   <span style={{color: '#4b5563'}}>{settings.companyName}</span>,{' '}
