@@ -96,6 +96,7 @@ export default function BillGenerator() {
   const [billToName, setBillToName] = useState(event?.clientName || '');
   const [billToAddress, setBillToAddress] = useState(event?.clientAddress || '');
   const [discount, setDiscount] = useState(0);
+  const [advance, setAdvance] = useState(0);
   const [gstEnabled, setGstEnabled] = useState(true);
   const [gstRate, setGstRate] = useState(String(settings.defaultGstRate || 18));
   const [interState, setInterState] = useState(false);
@@ -158,6 +159,7 @@ export default function BillGenerator() {
     });
     msg += `\nSubtotal: ${formatCurrency(subtotal)}`;
     if (discount > 0) msg += `\nDiscount: -${formatCurrency(discount)}`;
+    if (advance > 0) msg += `\nAdvance Paid: -${formatCurrency(advance)}`;
     if (gstEnabled) {
       if (interState) {
         msg += `\nIGST (${gstRate}%): ${formatCurrency(gstData.igst)}`;
@@ -198,6 +200,7 @@ export default function BillGenerator() {
             <Input label="Bill To (Name)" value={billToName} onChange={e => setBillToName(e.target.value)} />
             <Input label="Bill To (Address)" value={billToAddress} onChange={e => setBillToAddress(e.target.value)} />
             <Input label="Discount (₹)" type="number" value={discount} onChange={e => setDiscount(e.target.value)} />
+            <Input label="Advance Paid (₹)" type="number" value={advance} onChange={e => setAdvance(e.target.value)} />
             <Select label="GST Rate" options={['5', '12', '18', '28']} value={gstRate} onChange={e => setGstRate(e.target.value)} />
           </div>
           <div className="flex items-center gap-6 mt-4">
@@ -390,6 +393,18 @@ export default function BillGenerator() {
                       <td style={{fontSize: '16px', fontWeight: '700', color: '#1f2937', padding: '12px 16px'}}>GRAND TOTAL</td>
                       <td style={{fontSize: '16px', fontWeight: '700', color: '#652D90', textAlign: 'right', padding: '12px 16px'}}>{formatCurrency(rounded.rounded)}</td>
                     </tr>
+                    {Number(advance) > 0 && (
+                      <>
+                        <tr style={{borderTop: '1px solid #e5e7eb'}}>
+                          <td style={{fontSize: '12px', color: '#6b7280', padding: '8px 16px'}}>Advance Paid</td>
+                          <td style={{fontSize: '12px', color: '#059669', textAlign: 'right', padding: '8px 16px'}}>-{formatCurrency(advance)}</td>
+                        </tr>
+                        <tr style={{borderTop: '1px solid #e5e7eb', backgroundColor: '#f5f0fa'}}>
+                          <td style={{fontSize: '14px', fontWeight: '700', color: '#1f2937', padding: '10px 16px'}}>BALANCE DUE</td>
+                          <td style={{fontSize: '14px', fontWeight: '700', color: '#652D90', textAlign: 'right', padding: '10px 16px'}}>{formatCurrency(rounded.rounded - Number(advance))}</td>
+                        </tr>
+                      </>
+                    )}
                   </tbody>
                 </table>
               </td>
