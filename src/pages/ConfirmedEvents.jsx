@@ -380,6 +380,15 @@ export default function ConfirmedEvents() {
                   {/* Action Buttons - Always visible in collapsed view */}
                   {!isExpanded && (
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-bb-border">
+                      {ev.clientPhone && (
+                        <a href={telLink(ev.clientPhone)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                          <Phone size={14} /> Call
+                        </a>
+                      )}
+                      {ev.status === 'confirmed' && (
+                        <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
+                      )}
                       <Button size="sm" variant="ghost" icon={Edit3} onClick={() => navigate(`/edit/${ev.id}`)}>Edit</Button>
                       <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setAddItemModal(ev.id); setAddItemTarget('main'); }}>Add Item</Button>
                       <Button size="sm" variant="secondary" onClick={() => openPriceModal(ev)}>Set Prices</Button>
