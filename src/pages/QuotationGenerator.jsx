@@ -517,7 +517,7 @@ export default function QuotationGenerator() {
 
             {/* Row 4: Two boxes with purple top border */}
             <tr>
-              <td colSpan="3" style={{verticalAlign: 'top', padding: '16px 24px 12px'}}>
+              <td colSpan="3" style={{verticalAlign: 'top', padding: '16px 24px 12px', width: '60%'}}>
                 <div style={{borderTop: '3px solid #652D90', padding: '12px 0 0'}}>
                   <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#652D90'}}>BILL TO/ CLIENT</span><br/>
                   <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937', lineHeight: '2'}}>{event.clientName}</span><br/>
@@ -525,7 +525,7 @@ export default function QuotationGenerator() {
                   {event.clientAddress && <><br/><span style={{fontSize: '11px', color: '#6b7280'}}>{event.clientAddress}</span></>}
                 </div>
               </td>
-              <td colSpan="2" style={{verticalAlign: 'top', padding: '16px 24px 12px'}}>
+              <td colSpan="2" style={{verticalAlign: 'top', padding: '16px 24px 12px', width: '40%'}}>
                 <div style={{borderTop: '3px solid #652D90', padding: '12px 0 0', fontSize: '11px', color: '#4b5563', lineHeight: '1.9'}}>
                   <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#652D90'}}>EVENT DETAILS</span><br/>
                   {event.eventType && <>Event: {event.eventType}<br/></>}
@@ -660,28 +660,14 @@ export default function QuotationGenerator() {
             <tr>
               <td colSpan="5" style={{padding: '20px 24px 8px'}}>
                 <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>TERMS & CONDITIONS</span>
-                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                  <tbody>
-                    <tr>
-                      <td style={{verticalAlign: 'top', width: '14px', paddingTop: '5px', paddingBottom: '4px'}}><span style={{width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                      <td style={{verticalAlign: 'top', paddingBottom: '4px'}}>This quotation is valid for {validityDays} days from the date of issue.</td>
-                    </tr>
-                    <tr>
-                      <td style={{verticalAlign: 'top', width: '14px', paddingTop: '5px', paddingBottom: '4px'}}><span style={{width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                      <td style={{verticalAlign: 'top', paddingBottom: '4px'}}>Prices are subject to change after the validity period.</td>
-                    </tr>
-                    <tr>
-                      <td style={{verticalAlign: 'top', width: '14px', paddingTop: '5px', paddingBottom: '4px'}}><span style={{width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                      <td style={{verticalAlign: 'top', paddingBottom: '4px'}}>50% advance payment required to confirm booking.</td>
-                    </tr>
-                    {settings.termsAndConditions?.map((t, i) => (
-                      <tr key={i}>
-                        <td style={{verticalAlign: 'top', width: '14px', paddingTop: '5px', paddingBottom: '4px'}}><span style={{width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                        <td style={{verticalAlign: 'top', paddingBottom: '4px'}}>{t}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.6'}}>
+                  <div style={{padding: '2px 0'}}>1. This quotation is valid for {validityDays} days from the date of issue.</div>
+                  <div style={{padding: '2px 0'}}>2. Prices are subject to change after the validity period.</div>
+                  <div style={{padding: '2px 0'}}>3. 50% advance payment required to confirm booking.</div>
+                  {settings.termsAndConditions?.map((t, i) => (
+                    <div key={i} style={{padding: '2px 0'}}>{i + 4}. {t}</div>
+                  ))}
+                </div>
               </td>
             </tr>
 

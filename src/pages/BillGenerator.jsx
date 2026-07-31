@@ -235,7 +235,7 @@ export default function BillGenerator() {
                 Ph: {settings.phone} | GSTIN: {settings.gstin}
               </td>
               <td colSpan="3" style={{verticalAlign: 'top', textAlign: 'right', padding: '12px 24px'}}>
-                <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '40px', width: 'auto'}} /><br/>
+                <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '40px', width: 'auto', marginLeft: 'auto', display: 'block'}} /><br/>
                 <span style={{fontSize: '11px', color: '#4b5563', lineHeight: '2'}}>Bill Date: {formatDateReadable(invoiceDate)}</span><br/>
                 <span style={{fontSize: '11px', color: '#4b5563'}}>Invoice #: {invoiceNo}</span>
               </td>
@@ -250,7 +250,7 @@ export default function BillGenerator() {
 
             {/* Row 4: Two boxes with purple top border */}
             <tr>
-              <td colSpan="3" style={{verticalAlign: 'top', padding: '16px 24px 12px'}}>
+              <td style={{verticalAlign: 'top', padding: '16px 24px 12px', width: '60%'}} colSpan="3">
                 <div style={{borderTop: '3px solid #652D90', padding: '12px 0 0'}}>
                   <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#652D90'}}>BILL TO/ CLIENT</span><br/>
                   <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937', lineHeight: '2'}}>{billToName}</span><br/>
@@ -258,7 +258,7 @@ export default function BillGenerator() {
                   {billToAddress && <><br/><span style={{fontSize: '11px', color: '#6b7280'}}>{billToAddress}</span></>}
                 </div>
               </td>
-              <td colSpan="3" style={{verticalAlign: 'top', padding: '16px 24px 12px'}}>
+              <td style={{verticalAlign: 'top', padding: '16px 24px 12px', width: '40%'}} colSpan="3">
                 <div style={{borderTop: '3px solid #652D90', padding: '12px 0 0', fontSize: '11px', color: '#4b5563', lineHeight: '1.9'}}>
                   <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#652D90'}}>EVENT DETAILS</span><br/>
                   {event.eventType && <>Event: {event.eventType}<br/></>}
@@ -400,33 +400,29 @@ export default function BillGenerator() {
 
             {/* Bank + Terms side by side */}
             <tr>
-              <td colSpan="3" style={{verticalAlign: 'top', padding: '0 0 0 24px'}}>
+              <td colSpan="3" style={{verticalAlign: 'top', padding: '0 12px 0 24px', width: '50%'}}>
                 <div style={{backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden'}}>
                   <div style={{padding: '6px 12px', backgroundColor: '#e5e7eb'}}>
                     <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4b5563'}}>BANK ACCOUNT DETAILS</span>
                   </div>
-                  <div style={{padding: '10px 12px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                    Account Name: <strong>{settings.bankDetails?.accountName}</strong> | A/C No: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</strong><br/>
-                    Bank: {settings.bankDetails?.bankName}, {settings.bankDetails?.branch} | IFSC: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</strong>
+                  <div style={{padding: '10px 12px', fontSize: '11px', color: '#4b5563', lineHeight: '1.9'}}>
+                    Account Name: <strong>{settings.bankDetails?.accountName}</strong><br/>
+                    A/C No: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.accountNo}</strong><br/>
+                    Bank: {settings.bankDetails?.bankName}<br/>
+                    Branch: {settings.bankDetails?.branch}<br/>
+                    IFSC: <strong style={{fontFamily: 'monospace'}}>{settings.bankDetails?.ifscCode}</strong>
                   </div>
                 </div>
               </td>
-              <td colSpan="3" style={{verticalAlign: 'top', padding: '0 24px 0 12px'}}>
+              <td colSpan="3" style={{verticalAlign: 'top', padding: '0 24px 0 12px', width: '50%'}}>
                 <div style={{backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden'}}>
                   <div style={{padding: '6px 12px', backgroundColor: '#e5e7eb'}}>
                     <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4b5563'}}>TERMS & CONDITIONS</span>
                   </div>
-                  <div style={{padding: '10px 12px'}}>
-                    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                      <tbody>
-                        {settings.termsAndConditions?.map((t, i) => (
-                          <tr key={i}>
-                            <td style={{verticalAlign: 'top', width: '14px', paddingTop: '5px', paddingBottom: '3px'}}><span style={{width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                            <td style={{verticalAlign: 'top', paddingBottom: '3px'}}>{t}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div style={{padding: '10px 12px', fontSize: '11px', color: '#4b5563', lineHeight: '1.6'}}>
+                    {settings.termsAndConditions?.map((t, i) => (
+                      <div key={i} style={{padding: '2px 0'}}>{i + 1}. {t}</div>
+                    ))}
                   </div>
                 </div>
               </td>
@@ -437,7 +433,7 @@ export default function BillGenerator() {
 
             {/* Make checks payable */}
             <tr>
-              <td colSpan="6" style={{padding: '6px 24px', fontSize: '11px', color: '#6b7280', borderTop: '1px solid #e5e7eb'}}>
+              <td colSpan="6" style={{padding: '6px 24px', fontSize: '11px', color: '#6b7280', borderTop: '1px solid #e5e7eb', textAlign: 'center'}}>
                 Make all checks payable to "<span style={{fontWeight: '600', color: '#1f2937'}}>{settings.companyName}</span>"
               </td>
             </tr>
