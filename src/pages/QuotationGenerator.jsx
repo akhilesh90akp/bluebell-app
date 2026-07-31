@@ -485,68 +485,56 @@ export default function QuotationGenerator() {
 
       {/* === Quotation Preview - printable document === */}
       <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
-        <div style={{padding: '12px 16px'}}>
+        <table style={{width: '100%', borderCollapse: 'collapse', padding: '0', margin: '0'}}>
+          <tbody>
+            {/* Row 1: Title */}
+            <tr>
+              <td colSpan="5" style={{textAlign: 'center', padding: '12px 16px 8px'}}>
+                <span style={{fontSize: '18px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#652D90'}}>QUOTATION</span>
+                <div style={{height: '2px', width: '60px', margin: '6px auto 0', backgroundColor: '#652D90'}} />
+              </td>
+            </tr>
 
-          {/* QUOTATION title at top center */}
-          <div style={{textAlign: 'center', marginBottom: '10px'}}>
-            <h1 style={{fontSize: '18px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#652D90', margin: 0}}>QUOTATION</h1>
-            <div style={{height: '2px', width: '60px', margin: '6px auto 0', backgroundColor: '#652D90'}} />
-          </div>
+            {/* Row 2: Logo left, Address right */}
+            <tr>
+              <td colSpan="3" style={{verticalAlign: 'top', padding: '8px 16px'}}>
+                <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '36px', width: 'auto'}} />
+              </td>
+              <td colSpan="2" style={{verticalAlign: 'top', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6', padding: '8px 16px'}}>
+                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#111827'}}>BLUE BELL</span><br/>
+                Event Planners LLP<br/>
+                297/6, Keerikkattil, Karukappilly PO,<br/>
+                Kolenchery, Ernakulam, Kerala, 682311<br/>
+                Ph: {settings.phone}<br/>
+                {settings.gstin && <>GSTIN: {settings.gstin}</>}
+              </td>
+            </tr>
 
-          {/* Logo (left) | Company Address (right) */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '10px'}}>
-            <tbody>
-              <tr>
-                <td style={{verticalAlign: 'top', width: '50%'}}>
-                  <img src={import.meta.env.BASE_URL + "logo-purple-horizontal.svg"} alt="Bluebell" style={{height: '36px', width: 'auto'}} />
-                </td>
-                <td style={{verticalAlign: 'top', width: '50%', textAlign: 'right', fontSize: '11px', color: '#374151', lineHeight: '1.6'}}>
-                  <p style={{fontWeight: 'bold', fontSize: '13px', color: '#111827', margin: '0 0 2px'}}>BLUE BELL</p>
-                  <p style={{margin: '0 0 1px'}}>Event Planners LLP</p>
-                  <p style={{margin: '0 0 1px'}}>297/6, Keerikkattil, Karukappilly PO,</p>
-                  <p style={{margin: '0 0 1px'}}>Kolenchery, Ernakulam, Kerala, 682311</p>
-                  <p style={{margin: '0 0 1px'}}>Ph: {settings.phone}</p>
-                  {settings.gstin && <p style={{margin: 0}}>GSTIN: {settings.gstin}</p>}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            {/* Row 3: Separator */}
+            <tr><td colSpan="5" style={{borderBottom: '1px solid #e5e7eb', padding: '4px 16px'}} /></tr>
 
-          {/* Thin separator */}
-          <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '12px'}} />
+            {/* Row 4: Client info left, Event details right */}
+            <tr>
+              <td colSpan="3" style={{verticalAlign: 'top', padding: '8px 16px'}}>
+                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Bill To / Client</span><br/>
+                <span style={{fontSize: '13px', fontWeight: '600', color: '#111827'}}>{event.clientName}</span>
+                {event.clientPhone && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>Phone: {event.clientPhone}</span></>}
+                {event.clientAddress && <><br/><span style={{fontSize: '11px', color: '#4b5563'}}>{event.clientAddress}</span></>}
+              </td>
+              <td colSpan="2" style={{verticalAlign: 'top', padding: '8px 16px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af'}}>Event Details</span><br/>
+                {event.eventType && <><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}<br/></>}
+                {displayDate && <><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(displayDate)}<br/></>}
+                {(event.mainEvent?.location || event.eventLocation) && <><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.mainEvent?.location || event.eventLocation}<br/></>}
+                <span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}<br/>
+                <span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days
+              </td>
+            </tr>
 
-          {/* From / To - side by side */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '8px'}}>
-            <tbody>
-              <tr>
-                {/* To (Client) */}
-                <td style={{verticalAlign: 'top', width: '50%', paddingRight: '12px'}}>
-                  <div style={{padding: '0'}}>
-                    <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Bill To / Client</p>
-                    <p style={{fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 4px'}}>{event.clientName}</p>
-                    {event.clientPhone && <p style={{fontSize: '11px', color: '#4b5563', margin: '0 0 2px'}}>Phone: {event.clientPhone}</p>}
-                    {event.clientAddress && <p style={{fontSize: '11px', color: '#4b5563', marginTop: '4px'}}>{event.clientAddress}</p>}
-                  </div>
-                </td>
-                {/* Event Details */}
-                <td style={{verticalAlign: 'top', width: '50%', paddingLeft: '12px'}}>
-                  <div style={{padding: '0'}}>
-                    <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px'}}>Event Details</p>
-                    <div style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
-                      {event.eventType && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Event:</span> {event.eventType}</p>}
-                      {displayDate && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Date:</span> {formatDateReadable(displayDate)}</p>}
-                      {(event.mainEvent?.location || event.eventLocation) && <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Venue:</span> {event.mainEvent?.location || event.eventLocation}</p>}
-                      <p style={{margin: '0 0 3px'}}><span style={{fontWeight: '500', color: '#374151'}}>Quotation Date:</span> {formatDateReadable(new Date().toISOString())}</p>
-                      <p style={{margin: 0}}><span style={{fontWeight: '500', color: '#374151'}}>Valid for:</span> {validityDays} days</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            {/* Row 5: Spacer before items */}
+            <tr><td colSpan="5" style={{padding: '4px 0'}} /></tr>
 
-          {/* Items grouped by Event */}
-          <div style={{marginBottom: '32px'}}>
+            {/* Items grouped by Event */}
             {printGroups.map((group) => {
               const sectionSubtotal = group.items.reduce((sum, item) => {
                 const key = `${group.id}::${item}`;
@@ -557,188 +545,168 @@ export default function QuotationGenerator() {
               let slNo = 0;
 
               return (
-                <div key={group.id} style={{marginBottom: '24px', pageBreakInside: 'avoid'}}>
-                  {/* Section Header - Event name + date + location */}
-                  <div style={{marginBottom: '12px'}}>
-                    <h3 style={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90', margin: 0}}>
-                      {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
-                    </h3>
-                    <div style={{height: '1px', marginTop: '4px', backgroundColor: 'rgba(101, 45, 144, 0.19)'}} />
-                  </div>
+                <React.Fragment key={group.id}>
+                  {/* Event group header row */}
+                  <tr>
+                    <td colSpan="5" style={{padding: '8px 16px 4px'}}>
+                      <span style={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90'}}>
+                        {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
+                      </span>
+                      <div style={{height: '1px', marginTop: '4px', backgroundColor: 'rgba(101, 45, 144, 0.19)'}} />
+                    </td>
+                  </tr>
 
-                  {/* Section Table */}
-                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px', pageBreakInside: 'auto'}}>
-                    <thead>
-                      <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.06)'}}>
-                        <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', width: '40px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Sl.</th>
-                        <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Particulars</th>
-                        <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', width: '50px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Qty</th>
-                        <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', width: '90px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Rate (₹)</th>
-                        <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', width: '100px', borderBottom: '2px solid rgba(101, 45, 144, 0.31)', fontSize: '11px'}}>Amount (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.items.map((item) => {
-                        slNo++;
-                        const key = `${group.id}::${item}`;
-                        const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
-                        return (
-                          <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
-                            <td style={{padding: '10px 12px', color: '#9ca3af'}}>{slNo}</td>
-                            <td style={{padding: '10px 12px', color: '#1f2937'}}>{item}</td>
-                            <td style={{padding: '10px 12px', textAlign: 'center', color: '#374151'}}>{p.qty}</td>
-                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#374151'}}>{formatCurrency(p.rate)}</td>
-                            <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '500', color: '#111827'}}>{formatCurrency(p.qty * p.rate)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  {/* Items table header */}
+                  <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.06)', borderBottom: '2px solid rgba(101, 45, 144, 0.31)'}}>
+                    <th style={{padding: '8px 12px 8px 16px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '11px', width: '40px'}}>Sl.</th>
+                    <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '11px'}}>Particulars</th>
+                    <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '11px', width: '50px'}}>Qty</th>
+                    <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '11px', width: '90px'}}>Rate (₹)</th>
+                    <th style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '11px', width: '100px', paddingRight: '16px'}}>Amount (₹)</th>
+                  </tr>
 
-                  {/* Section Subtotal */}
-                  <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '4px'}}>
-                    <tbody>
-                      <tr>
-                        <td style={{textAlign: 'right'}}>
-                          <span style={{padding: '8px 12px', borderRadius: '4px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
-                            <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Subtotal</span>
-                            <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Summary Box - All event totals + Grand Total */}
-          {printGroups.length > 0 && (
-            <div style={{marginBottom: '32px'}}>
-              <div style={{border: '1px solid rgba(101, 45, 144, 0.19)', borderRadius: '8px', overflow: 'hidden'}}>
-                <div style={{padding: '8px 16px', backgroundColor: 'rgba(101, 45, 144, 0.08)'}}>
-                  <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', margin: 0}}>Summary</p>
-                </div>
-                <div style={{padding: '12px 16px'}}>
-                  {printGroups.map((group) => {
-                    const sectionTotal = group.items.reduce((sum, item) => {
-                      const key = `${group.id}::${item}`;
-                      const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
-                      return sum + (p.qty * p.rate);
-                    }, 0);
+                  {/* Item rows */}
+                  {group.items.map((item) => {
+                    slNo++;
+                    const key = `${group.id}::${item}`;
+                    const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
                     return (
-                      <table key={group.id} style={{width: '100%', borderCollapse: 'collapse'}}>
-                        <tbody>
-                          <tr>
-                            <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 0'}}>{group.name}</td>
-                            <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(sectionTotal)}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <tr key={item} style={{borderBottom: '1px solid #f3f4f6'}}>
+                        <td style={{padding: '10px 12px 10px 16px', color: '#9ca3af', fontSize: '12px'}}>{slNo}</td>
+                        <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{item}</td>
+                        <td style={{padding: '10px 12px', textAlign: 'center', color: '#374151', fontSize: '12px'}}>{p.qty}</td>
+                        <td style={{padding: '10px 12px', textAlign: 'right', color: '#374151', fontSize: '12px'}}>{formatCurrency(p.rate)}</td>
+                        <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '500', color: '#111827', fontSize: '12px', paddingRight: '16px'}}>{formatCurrency(p.qty * p.rate)}</td>
+                      </tr>
                     );
                   })}
 
-                  <div style={{borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px'}}>
-                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  {/* Section subtotal row */}
+                  <tr>
+                    <td colSpan="5" style={{textAlign: 'right', padding: '6px 16px 12px'}}>
+                      <span style={{padding: '6px 12px', backgroundColor: 'rgba(101, 45, 144, 0.03)', borderRadius: '4px'}}>
+                        <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Subtotal</span>
+                        <span style={{fontSize: '13px', fontWeight: 'bold', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
+                      </span>
+                    </td>
+                  </tr>
+                </React.Fragment>
+              );
+            })}
+
+            {/* Fallback if no items */}
+            {printGroups.length === 0 && (
+              <tr>
+                <td colSpan="5" style={{textAlign: 'center', padding: '24px 16px', color: '#9ca3af', fontSize: '13px', fontStyle: 'italic'}}>
+                  No items added to this quotation yet.
+                </td>
+              </tr>
+            )}
+
+            {/* Summary section */}
+            {printGroups.length > 0 && (
+              <>
+                {/* Spacer */}
+                <tr><td colSpan="5" style={{padding: '8px 0'}} /></tr>
+
+                {/* Summary header */}
+                <tr>
+                  <td colSpan="5" style={{padding: '0 16px'}}>
+                    <table style={{width: '100%', borderCollapse: 'collapse', border: '1px solid rgba(101, 45, 144, 0.19)', borderRadius: '8px'}}>
                       <tbody>
-                        <tr>
-                          <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>Subtotal</td>
-                          <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(subtotal)}</td>
+                        <tr style={{backgroundColor: 'rgba(101, 45, 144, 0.08)'}}>
+                          <td colSpan="2" style={{padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Summary</td>
+                        </tr>
+                        {printGroups.map((group) => {
+                          const sectionTotal = group.items.reduce((sum, item) => {
+                            const key = `${group.id}::${item}`;
+                            const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
+                            return sum + (p.qty * p.rate);
+                          }, 0);
+                          return (
+                            <tr key={group.id}>
+                              <td style={{fontSize: '13px', color: '#4b5563', padding: '4px 16px'}}>{group.name}</td>
+                              <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(sectionTotal)}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{borderTop: '1px solid #e5e7eb'}}>
+                          <td style={{fontSize: '13px', color: '#6b7280', padding: '8px 16px'}}>Subtotal</td>
+                          <td style={{fontSize: '13px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(subtotal)}</td>
                         </tr>
                         {gstEnabled && (
                           <>
                             <tr>
-                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>CGST ({Number(gstRate)/2}%)</td>
-                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(gstData.cgst)}</td>
+                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>CGST ({Number(gstRate)/2}%)</td>
+                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(gstData.cgst)}</td>
                             </tr>
                             <tr>
-                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 0'}}>SGST ({Number(gstRate)/2}%)</td>
-                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 0'}}>{formatCurrency(gstData.sgst)}</td>
+                              <td style={{fontSize: '13px', color: '#6b7280', padding: '4px 16px'}}>SGST ({Number(gstRate)/2}%)</td>
+                              <td style={{fontSize: '13px', color: '#1f2937', textAlign: 'right', padding: '4px 16px'}}>{formatCurrency(gstData.sgst)}</td>
                             </tr>
                           </>
                         )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Grand total with accent border */}
-                  <div style={{paddingTop: '8px', marginTop: '8px', borderTop: '2px solid #652D90'}}>
-                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                      <tbody>
-                        <tr>
-                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#111827'}}>GRAND TOTAL</td>
-                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90', textAlign: 'right'}}>{formatCurrency(gstData.total)}</td>
+                        <tr style={{borderTop: '2px solid #652D90'}}>
+                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#111827', padding: '10px 16px'}}>GRAND TOTAL</td>
+                          <td style={{fontSize: '17px', fontWeight: 'bold', color: '#652D90', textAlign: 'right', padding: '10px 16px'}}>{formatCurrency(gstData.total)}</td>
                         </tr>
                       </tbody>
                     </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                  </td>
+                </tr>
+              </>
+            )}
 
-          {/* Fallback if no items */}
-          {printGroups.length === 0 && (
-            <div style={{marginBottom: '32px', textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '13px', fontStyle: 'italic'}}>
-              No items added to this quotation yet.
-            </div>
-          )}
+            {/* Spacer before terms */}
+            <tr><td colSpan="5" style={{padding: '8px 0'}} /></tr>
 
-          {/* Terms & Conditions */}
-          <div style={{borderTop: '1px solid #f3f4f6', paddingTop: '24px', marginBottom: '24px', pageBreakInside: 'auto'}}>
-            <p style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90', marginBottom: '12px'}}>Terms & Conditions</p>
-            <ul style={{fontSize: '11px', color: '#4b5563', lineHeight: '1.8', margin: 0, padding: 0, listStyle: 'none'}}>
-              <li style={{marginBottom: '6px'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <tbody><tr>
-                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                    <td style={{verticalAlign: 'top'}}>This quotation is valid for {validityDays} days from the date of issue.</td>
-                  </tr></tbody>
+            {/* Terms & Conditions */}
+            <tr>
+              <td colSpan="5" style={{padding: '8px 16px', borderTop: '1px solid #f3f4f6'}}>
+                <span style={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>Terms & Conditions</span>
+                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '11px', color: '#4b5563', lineHeight: '1.8'}}>
+                  <tbody>
+                    <tr>
+                      <td style={{verticalAlign: 'top', width: '12px', paddingBottom: '6px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                      <td style={{verticalAlign: 'top', paddingBottom: '6px'}}>This quotation is valid for {validityDays} days from the date of issue.</td>
+                    </tr>
+                    <tr>
+                      <td style={{verticalAlign: 'top', width: '12px', paddingBottom: '6px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                      <td style={{verticalAlign: 'top', paddingBottom: '6px'}}>Prices are subject to change after the validity period.</td>
+                    </tr>
+                    <tr>
+                      <td style={{verticalAlign: 'top', width: '12px', paddingBottom: '6px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                      <td style={{verticalAlign: 'top', paddingBottom: '6px'}}>50% advance payment required to confirm booking.</td>
+                    </tr>
+                    {settings.termsAndConditions?.map((t, i) => (
+                      <tr key={i}>
+                        <td style={{verticalAlign: 'top', width: '12px', paddingBottom: '6px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
+                        <td style={{verticalAlign: 'top', paddingBottom: '6px'}}>{t}</td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
-              </li>
-              <li style={{marginBottom: '6px'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <tbody><tr>
-                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                    <td style={{verticalAlign: 'top'}}>Prices are subject to change after the validity period.</td>
-                  </tr></tbody>
-                </table>
-              </li>
-              <li style={{marginBottom: '6px'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <tbody><tr>
-                    <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                    <td style={{verticalAlign: 'top'}}>50% advance payment required to confirm booking.</td>
-                  </tr></tbody>
-                </table>
-              </li>
-              {settings.termsAndConditions?.map((t, i) => (
-                <li key={i} style={{marginBottom: '6px'}}>
-                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                    <tbody><tr>
-                      <td style={{verticalAlign: 'top', width: '12px'}}><span style={{width: '4px', height: '4px', borderRadius: '50%', marginTop: '6px', backgroundColor: '#652D90', display: 'inline-block'}} /></td>
-                      <td style={{verticalAlign: 'top'}}>{t}</td>
-                    </tr></tbody>
-                  </table>
-                </li>
-              ))}
-            </ul>
-          </div>
+              </td>
+            </tr>
 
-          {/* Validity Note */}
-          <div style={{textAlign: 'center', padding: '12px 0', marginBottom: '16px', borderRadius: '8px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
-            <p style={{fontSize: '11px', color: '#6b7280', fontStyle: 'italic', margin: 0}}>
-              This quotation is valid for <span style={{fontWeight: '600', color: '#374151'}}>{validityDays} days</span> from the date of issue.
-            </p>
-          </div>
+            {/* Validity Note */}
+            <tr>
+              <td colSpan="5" style={{textAlign: 'center', padding: '12px 16px', backgroundColor: 'rgba(101, 45, 144, 0.03)'}}>
+                <span style={{fontSize: '11px', color: '#6b7280', fontStyle: 'italic'}}>
+                  This quotation is valid for <span style={{fontWeight: '600', color: '#374151'}}>{validityDays} days</span> from the date of issue.
+                </span>
+              </td>
+            </tr>
 
-          {/* Footer */}
-          <div style={{borderTop: '1px solid #e5e7eb', paddingTop: '16px', textAlign: 'center'}}>
-            <p style={{fontSize: '13px', fontWeight: '600', color: '#374151', margin: '0 0 4px'}}>{settings.companyName}</p>
-            <p style={{fontSize: '11px', color: '#6b7280', margin: 0}}>{settings.phone}{settings.email ? ` | ${settings.email}` : ''}</p>
-          </div>
-        </div>
+            {/* Footer */}
+            <tr>
+              <td colSpan="5" style={{textAlign: 'center', padding: '16px', borderTop: '1px solid #e5e7eb'}}>
+                <span style={{fontSize: '13px', fontWeight: '600', color: '#374151'}}>{settings.companyName}</span><br/>
+                <span style={{fontSize: '11px', color: '#6b7280'}}>{settings.phone}{settings.email ? ` | ${settings.email}` : ''}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
