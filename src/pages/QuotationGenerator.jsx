@@ -291,8 +291,13 @@ export default function QuotationGenerator() {
     showToast('Quotation saved');
   };
 
-  /** Triggers the browser print dialog */
-  const handlePrint = () => window.print();
+  /** Triggers the browser print dialog with descriptive PDF filename */
+  const handlePrint = () => {
+    const dateStr = displayDate ? formatDateReadable(displayDate) : formatDateReadable(new Date().toISOString());
+    document.title = `Quotation - ${event.clientName || 'Client'} ${event.eventType || 'Event'} ${dateStr}`;
+    window.print();
+    document.title = 'Bluebell';
+  };
 
   /** Generates a formatted WhatsApp message with quotation details */
   const generateWhatsAppMsg = () => {
@@ -480,16 +485,16 @@ export default function QuotationGenerator() {
 
       {/* === Quotation Preview - printable document === */}
       <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
-        <div style={{padding: '32px'}}>
+        <div style={{padding: '20px'}}>
 
           {/* QUOTATION title at top center */}
-          <div style={{textAlign: 'center', marginBottom: '24px'}}>
+          <div style={{textAlign: 'center', marginBottom: '16px'}}>
             <h1 style={{fontSize: '24px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#652D90', margin: 0}}>QUOTATION</h1>
             <div style={{height: '2px', width: '80px', margin: '8px auto 0', backgroundColor: '#652D90'}} />
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '24px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
@@ -508,10 +513,10 @@ export default function QuotationGenerator() {
           </table>
 
           {/* Thin separator */}
-          <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '24px'}} />
+          <div style={{height: '1px', backgroundColor: '#e5e7eb', marginBottom: '12px'}} />
 
           {/* From / To - side by side */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '32px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
             <tbody>
               <tr>
                 {/* To (Client) */}

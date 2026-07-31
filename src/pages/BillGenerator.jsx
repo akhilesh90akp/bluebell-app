@@ -132,8 +132,13 @@ export default function BillGenerator() {
     );
   }
 
-  /** Triggers the browser print dialog */
-  const handlePrint = () => window.print();
+  /** Triggers the browser print dialog with descriptive PDF filename */
+  const handlePrint = () => {
+    const dateStr = formatDateReadable(invoiceDate);
+    document.title = `Invoice - ${billToName || event.clientName || 'Client'} ${invoiceNo} ${dateStr}`;
+    window.print();
+    document.title = 'Bluebell';
+  };
 
   /** Generates a formatted WhatsApp message with invoice details */
   const generateWhatsAppMsg = () => {
@@ -211,16 +216,16 @@ export default function BillGenerator() {
 
       {/* === Invoice Preview - printable document === */}
       <div ref={pdfRef} className="print-doc" style={{backgroundColor: 'white', color: '#111827', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', maxWidth: '800px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}>
-        <div style={{padding: '32px'}}>
+        <div style={{padding: '20px'}}>
 
           {/* INVOICE title at top center */}
-          <div style={{textAlign: 'center', marginBottom: '24px'}}>
+          <div style={{textAlign: 'center', marginBottom: '16px'}}>
             <h1 style={{fontSize: '24px', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#111827', margin: 0}}>INVOICE</h1>
             <div style={{height: '2px', width: '80px', margin: '8px auto 0', backgroundColor: '#111827'}} />
           </div>
 
           {/* Logo (left) | Company Address (right) */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '32px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
@@ -239,10 +244,10 @@ export default function BillGenerator() {
           </table>
 
           {/* Thin separator */}
-          <div style={{borderTop: '1px solid #e5e7eb', marginBottom: '24px'}} />
+          <div style={{borderTop: '1px solid #e5e7eb', marginBottom: '12px'}} />
 
           {/* Invoice details row */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '32px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>
             <tbody>
               <tr>
                 <td style={{verticalAlign: 'top', width: '50%'}}>
@@ -265,7 +270,7 @@ export default function BillGenerator() {
           </table>
 
           {/* Items grouped by Event */}
-          <div style={{marginBottom: '32px'}}>
+          <div style={{marginBottom: '20px'}}>
             {eventGroups.map((group) => {
               let slNo = 0;
               const groupSubtotal = group.items.reduce((sum, item) => {
@@ -336,7 +341,7 @@ export default function BillGenerator() {
           </div>
 
           {/* Totals + Bank/Terms section */}
-          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '32px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '20px'}}>
             <tbody>
               <tr>
                 {/* Bank Details - Left */}
