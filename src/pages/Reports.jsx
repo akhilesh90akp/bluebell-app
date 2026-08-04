@@ -31,8 +31,10 @@ export default function Reports() {
   // Filter events based on selected date range
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
-      if (!e.date) return false;
-      const d = new Date(e.date);
+      // Support both new format (mainEvent.date) and old format (e.date)
+      const eventDate = e.mainEvent?.date || e.date;
+      if (!eventDate) return false;
+      const d = new Date(eventDate);
       if (filter === 'monthly') {
         const [y, m] = month.split('-');
         return d.getFullYear() === Number(y) && d.getMonth() + 1 === Number(m);
@@ -64,7 +66,10 @@ export default function Reports() {
 
   /** Uses browser print dialog which allows "Save as PDF" on all modern browsers */
   const handleDownload = () => {
+    const period = filter === 'monthly' ? month : filter === 'yearly' ? year : `${dateFrom} to ${dateTo}`;
+    document.title = `Bluebell Report - ${filter} - ${period}`;
     window.print();
+    setTimeout(() => { document.title = 'Bluebell'; }, 1000);
   };
 
   // Filter tab configuration
@@ -159,7 +164,7 @@ export default function Reports() {
                     <td className="py-2 px-2 text-bb-muted">{i + 1}</td>
                     <td className="py-2 px-2 text-bb-text font-medium truncate max-w-[120px]">{e.clientName}</td>
                     <td className="py-2 px-2 text-bb-muted hidden sm:table-cell">{e.eventType}</td>
-                    <td className="py-2 px-2 text-bb-muted">{formatDateReadable(e.date)}</td>
+                    <td className="py-2 px-2 text-bb-muted">{formatDateReadable(e.mainEvent?.date || e.date)}</td>
                     <td className="py-2 px-2"><Badge variant={e.status}>{e.status}</Badge></td>
                     <td className="py-2 px-2 text-right text-bb-text">{formatCurrency(e.totalAmount || 0)}</td>
                   </tr>
