@@ -35,16 +35,34 @@ export default function Reports() {
     // First check if totalAmount was explicitly set
     if (event.totalAmount && Number(event.totalAmount) > 0) return Number(event.totalAmount);
     
-    // Otherwise calculate from itemPrices
-    const prices = event.itemPrices || {};
+    // Calculate from itemPrices (handles both keyed and plain formats)
+    const prices = event.itemPrices;
+    if (!prices || typeof prices !== 'object') return 0;
+    
     let total = 0;
+    
+    // Try iterating all price entries
     Object.entries(prices).forEach(([key, p]) => {
-      if (p && typeof p === 'object') {
+      if (p && typeof p === 'object' && (p.rate || p.qty)) {
         const qty = Number(p.qty) || 1;
         const rate = Number(p.rate) || 0;
         total += qty * rate;
       }
     });
+    
+    // If still 0, try getting items from mainEvent + subEvents and look up prices
+    if (total === 0 && event.mainEvent?.items) {
+      const allItems = [...(event.mainEvent.items || [])];
+      (event.subEvents || []).forEach(s => { allItems.push(...(s.items || [])); });
+      allItems.forEach(item => {
+        // Try keyed format
+        const p = prices[`main::${item}`] || prices[item] || {};
+        const qty = Number(p.qty) || 1;
+        const rate = Number(p.rate) || 0;
+        total += qty * rate;
+      });
+    }
+    
     return total;
   };
 
