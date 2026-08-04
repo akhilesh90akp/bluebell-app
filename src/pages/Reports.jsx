@@ -16,7 +16,7 @@ import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
 
 /** Displays event reports with date-based filtering and summary stats */
 export default function Reports() {
-  const { events } = useApp();
+  const { events, settings } = useApp();
   const [filter, setFilter] = useState('monthly'); // monthly | yearly | custom
   const [statusFilter, setStatusFilter] = useState('completed'); // all | completed | confirmed
   const [excludeGST, setExcludeGST] = useState(false);
@@ -90,7 +90,7 @@ export default function Reports() {
       }
       return true;
     });
-  }, [events, filter, month, year, dateFrom, dateTo]);
+  }, [events, filter, month, year, dateFrom, dateTo, statusFilter]);
 
   // Compute aggregate statistics from filtered events
   const stats = useMemo(() => {
@@ -102,15 +102,21 @@ export default function Reports() {
     return { total, drafts, confirmed, completed, revenue };
   }, [filteredEvents]);
 
-  /** Triggers browser print dialog */
-  const handlePrint = () => window.print();
 
-  /** Uses browser print dialog which allows "Save as PDF" on all modern browsers */
+  /** Generate PDF report */
   const handleDownload = () => {
     const period = filter === 'monthly' ? month : filter === 'yearly' ? year : `${dateFrom} to ${dateTo}`;
-    document.title = `Bluebell Report - ${filter} - ${period}`;
-    window.print();
-    setTimeout(() => { document.title = 'Bluebell'; }, 1000);
+    document.title = `Bluebell Report - ${statusFilter} - ${period}`;
+    // Show print section, hide screen content
+    const printEl = document.getElementById('report-print');
+    if (printEl) printEl.style.display = 'block';
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        if (printEl) printEl.style.display = 'none';
+        document.title = 'Bluebell';
+      }, 500);
+    }, 100);
   };
 
   // Filter tab configuration
@@ -122,7 +128,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-bb-text">Reports</h1>
+      <h1 data-no-print className="text-xl font-bold text-bb-text">Reports</h1>
 
       {/* Filter Tabs */}
       <div className="flex gap-2">
@@ -233,9 +239,75 @@ export default function Reports() {
       </Card>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div data-no-print className="flex gap-2">
         <Button icon={Download} onClick={handleDownload} variant="secondary">Download PDF</Button>
-        <Button icon={Printer} onClick={handlePrint} variant="secondary">Print</Button>
+      </div>
+
+      {/* Printable Report - hidden on screen, shown during print */}
+      <div className="print-doc" style={{display: "none"}} id="report-print" style={{backgroundColor: 'white', color: '#111827', fontFamily: 'Inter, -apple-system, sans-serif', padding: '20px'}}>
+        <table style={{width: '100%', borderCollapse: 'collapse'}}>
+          <tbody>
+            {/* Title */}
+            <tr>
+              <td colSpan="5" style={{textAlign: 'center', padding: '12px 0'}}>
+                <span style={{fontSize: '18px', fontWeight: '800', letterSpacing: '0.15em', color: '#652D90', textTransform: 'uppercase'}}>EVENT REPORT</span>
+                <div style={{height: '2px', width: '60px', margin: '6px auto 0', backgroundColor: '#652D90'}} />
+              </td>
+            </tr>
+            {/* Company + Period */}
+            <tr>
+              <td colSpan="3" style={{padding: '8px 0', fontSize: '12px', color: '#374151'}}>
+                <strong>BLUE BELL</strong> — Event Planners LLP<br/>
+                Ph: {settings.phone}
+              </td>
+              <td colSpan="2" style={{padding: '8px 0', fontSize: '12px', color: '#374151', textAlign: 'right'}}>
+                <strong>Period:</strong> {filter === 'monthly' ? month : filter === 'yearly' ? year : `${dateFrom} to ${dateTo}`}<br/>
+                <strong>Status:</strong> {statusFilter}<br/>
+                <strong>Generated:</strong> {formatDateReadable(new Date().toISOString())}
+              </td>
+            </tr>
+            {/* Separator */}
+            <tr><td colSpan="5" style={{borderBottom: '1px solid #e5e7eb', padding: '4px 0'}} /></tr>
+            {/* Summary Stats */}
+            <tr>
+              <td colSpan="5" style={{padding: '12px 0 8px'}}>
+                <strong style={{fontSize: '11px'}}>Total Events: {stats.total}</strong> &nbsp;|&nbsp;
+                <span style={{fontSize: '11px'}}>Completed: {stats.completed}</span> &nbsp;|&nbsp;
+                <span style={{fontSize: '11px'}}>Confirmed: {stats.confirmed}</span> &nbsp;|&nbsp;
+                <span style={{fontSize: '11px', fontWeight: 'bold', color: '#652D90'}}>Revenue: {formatCurrency(stats.revenue)}</span>
+              </td>
+            </tr>
+            {/* Table Header */}
+            <tr style={{backgroundColor: '#f5f0fa', borderBottom: '2px solid #652D90'}}>
+              <th style={{padding: '8px', textAlign: 'left', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'}}>#</th>
+              <th style={{padding: '8px', textAlign: 'left', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'}}>Client</th>
+              <th style={{padding: '8px', textAlign: 'left', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'}}>Event Type</th>
+              <th style={{padding: '8px', textAlign: 'left', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'}}>Date</th>
+              <th style={{padding: '8px', textAlign: 'right', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'}}>Amount</th>
+            </tr>
+            {/* Data Rows */}
+            {filteredEvents.map((e, i) => (
+              <tr key={e.id} style={{borderBottom: '1px solid #f3f4f6'}}>
+                <td style={{padding: '8px', fontSize: '11px', color: '#6b7280'}}>{i + 1}</td>
+                <td style={{padding: '8px', fontSize: '11px', color: '#1f2937', fontWeight: '500'}}>{e.clientName}</td>
+                <td style={{padding: '8px', fontSize: '11px', color: '#4b5563'}}>{e.eventType}</td>
+                <td style={{padding: '8px', fontSize: '11px', color: '#4b5563'}}>{formatDateReadable(e.mainEvent?.date || e.date)}</td>
+                <td style={{padding: '8px', fontSize: '11px', color: '#1f2937', fontWeight: '600', textAlign: 'right'}}>{formatCurrency(getEventTotal(e))}</td>
+              </tr>
+            ))}
+            {/* Total Row */}
+            <tr style={{borderTop: '2px solid #652D90'}}>
+              <td colSpan="4" style={{padding: '10px 8px', fontSize: '13px', fontWeight: '700'}}>TOTAL REVENUE</td>
+              <td style={{padding: '10px 8px', fontSize: '13px', fontWeight: '700', color: '#652D90', textAlign: 'right'}}>{formatCurrency(stats.revenue)}</td>
+            </tr>
+            {/* Footer */}
+            <tr>
+              <td colSpan="5" style={{padding: '16px 0 0', textAlign: 'center', fontSize: '10px', color: '#9ca3af'}}>
+                Generated by Bluebell Event Planners | {settings.phone}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
