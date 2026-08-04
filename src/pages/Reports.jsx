@@ -18,6 +18,8 @@ import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
 export default function Reports() {
   const { events } = useApp();
   const [filter, setFilter] = useState('monthly'); // monthly | yearly | custom
+  const [statusFilter, setStatusFilter] = useState('completed'); // all | completed | confirmed
+  const [excludeGST, setExcludeGST] = useState(false);
 
   // Initialize month/year to current period
   const [month, setMonth] = useState(() => {
@@ -28,9 +30,25 @@ export default function Reports() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // Filter events based on selected date range
+  // Helper: calculate event total from itemPrices
+  const getEventTotal = (event) => {
+    if (event.totalAmount && event.totalAmount > 0) return event.totalAmount;
+    const prices = event.itemPrices || {};
+    let total = 0;
+    Object.values(prices).forEach(p => {
+      const qty = Number(p.qty) || 1;
+      const rate = Number(p.rate) || 0;
+      total += qty * rate;
+    });
+    return total;
+  };
+
+  // Filter events based on selected date range and status
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
+      // Status filter
+      if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+
       // Support both new format (mainEvent.date) and old format (e.date)
       const eventDate = e.mainEvent?.date || e.date;
       if (!eventDate) return false;
@@ -57,7 +75,7 @@ export default function Reports() {
     const drafts = filteredEvents.filter(e => e.status === 'draft').length;
     const confirmed = filteredEvents.filter(e => e.status === 'confirmed').length;
     const completed = filteredEvents.filter(e => e.status === 'completed').length;
-    const revenue = filteredEvents.reduce((s, e) => s + (e.totalAmount || 0), 0);
+    const revenue = filteredEvents.reduce((s, e) => s + getEventTotal(e), 0);
     return { total, drafts, confirmed, completed, revenue };
   }, [filteredEvents]);
 
@@ -118,6 +136,22 @@ export default function Reports() {
         </div>
       </Card>
 
+      {/* Status Filter + GST Toggle */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1">
+          {[{key: 'completed', label: 'Completed'}, {key: 'confirmed', label: 'Confirmed'}, {key: 'all', label: 'All'}].map(s => (
+            <button key={s.key} onClick={() => setStatusFilter(s.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer transition-colors ${
+                statusFilter === s.key ? 'bg-bb-accent text-white' : 'bg-bb-card border border-bb-border text-bb-muted'
+              }`}>{s.label}</button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-bb-muted cursor-pointer">
+          <input type="checkbox" checked={excludeGST} onChange={e => setExcludeGST(e.target.checked)} className="rounded" />
+          Exclude GST from amounts
+        </label>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
@@ -166,7 +200,7 @@ export default function Reports() {
                     <td className="py-2 px-2 text-bb-muted hidden sm:table-cell">{e.eventType}</td>
                     <td className="py-2 px-2 text-bb-muted">{formatDateReadable(e.mainEvent?.date || e.date)}</td>
                     <td className="py-2 px-2"><Badge variant={e.status}>{e.status}</Badge></td>
-                    <td className="py-2 px-2 text-right text-bb-text">{formatCurrency(e.totalAmount || 0)}</td>
+                    <td className="py-2 px-2 text-right text-bb-text">{formatCurrency(getEventTotal(e))}</td>
                   </tr>
                 ))}
               </tbody>
