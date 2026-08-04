@@ -265,7 +265,7 @@ export default function QuotationGenerator() {
   /** Persists the current items and prices back to the event in context */
   const handleSave = () => {
     // Save itemPrices with eventId::itemName keys
-    const updateData = { itemPrices: itemPrices };
+    const updateData = { itemPrices: itemPrices, totalAmount: subtotal };
 
     if (event.mainEvent) {
       // Reconstruct mainEvent items from localItems keys

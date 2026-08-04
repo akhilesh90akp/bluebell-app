@@ -32,13 +32,18 @@ export default function Reports() {
 
   // Helper: calculate event total from itemPrices
   const getEventTotal = (event) => {
-    if (event.totalAmount && event.totalAmount > 0) return event.totalAmount;
+    // First check if totalAmount was explicitly set
+    if (event.totalAmount && Number(event.totalAmount) > 0) return Number(event.totalAmount);
+    
+    // Otherwise calculate from itemPrices
     const prices = event.itemPrices || {};
     let total = 0;
-    Object.values(prices).forEach(p => {
-      const qty = Number(p.qty) || 1;
-      const rate = Number(p.rate) || 0;
-      total += qty * rate;
+    Object.entries(prices).forEach(([key, p]) => {
+      if (p && typeof p === 'object') {
+        const qty = Number(p.qty) || 1;
+        const rate = Number(p.rate) || 0;
+        total += qty * rate;
+      }
     });
     return total;
   };
