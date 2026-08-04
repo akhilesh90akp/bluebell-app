@@ -127,10 +127,12 @@ export default function Reports() {
   ];
 
   return (
-    <div className="space-y-4">
-      <h1 data-no-print className="text-xl font-bold text-bb-text">Reports</h1>
+    <div>
+      {/* Screen UI - hidden during print */}
+      <div data-no-print className="space-y-4">
+        <h1 className="text-xl font-bold text-bb-text">Reports</h1>
 
-      {/* Filter Tabs */}
+        {/* Filter Tabs */}
       <div className="flex gap-2">
         {filterTabs.map(t => (
           <button
@@ -239,12 +241,13 @@ export default function Reports() {
       </Card>
 
       {/* Actions */}
-      <div data-no-print className="flex gap-2">
-        <Button icon={Download} onClick={handleDownload} variant="secondary">Download PDF</Button>
+        <div className="flex gap-2">
+          <Button icon={Download} onClick={handleDownload} variant="secondary">Download PDF</Button>
+        </div>
       </div>
 
       {/* Printable Report - hidden on screen, shown during print */}
-      <div className="print-doc" style={{display: "none"}} id="report-print" style={{backgroundColor: 'white', color: '#111827', fontFamily: 'Inter, -apple-system, sans-serif', padding: '20px'}}>
+      <div className="print-doc" id="report-print" style={{display: 'none', backgroundColor: 'white', color: '#111827', fontFamily: 'Inter, -apple-system, sans-serif', padding: '20px'}}>
         <table style={{width: '100%', borderCollapse: 'collapse'}}>
           <tbody>
             {/* Title */}
