@@ -75,7 +75,7 @@ export default function ConfirmedEvents() {
         (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
+    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
 
   /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {
@@ -249,12 +249,12 @@ export default function ConfirmedEvents() {
                             +{ev.subEvents.length} sub-event{ev.subEvents.length > 1 ? 's' : ''}
                           </span>
                         )}
-                        {ev.totalAmount > 0 && (
-                          <span className="font-bold text-bb-gold">{formatCurrency(ev.totalAmount)}</span>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {ev.totalAmount > 0 && (
+                        <span className="font-bold text-emerald-600 text-sm">{formatCurrency(ev.totalAmount)}</span>
+                      )}
                       {days !== null && days >= 0 && ev.status === 'confirmed' && (
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                           days <= 3 ? 'bg-red-100 text-red-700' :

@@ -31,7 +31,7 @@ export default function Dashboard() {
   // Get upcoming confirmed events sorted by date (nearest first)
   const upcoming = confirmed
     .filter(e => e.date && daysUntil(e.date) >= 0)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+    .sort((a, b) => new Date(a.mainEvent?.date || a.date) - new Date(b.mainEvent?.date || b.date));
 
   // Stats card configuration
   const stats = [

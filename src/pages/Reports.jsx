@@ -89,6 +89,10 @@ export default function Reports() {
         return true;
       }
       return true;
+    }).sort((a, b) => {
+      const dateA = new Date(a.mainEvent?.date || a.date || a.createdAt);
+      const dateB = new Date(b.mainEvent?.date || b.date || b.createdAt);
+      return dateA - dateB;
     });
   }, [events, filter, month, year, dateFrom, dateTo, statusFilter]);
 
