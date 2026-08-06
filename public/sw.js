@@ -2,7 +2,7 @@
  * Service Worker - Enables PWA install + offline caching
  */
 
-const CACHE_NAME = 'bluebell-v2';
+const CACHE_NAME = 'bluebell-v3';
 const BASE = '/bluebell-app/';
 const STATIC_ASSETS = [
   BASE,
