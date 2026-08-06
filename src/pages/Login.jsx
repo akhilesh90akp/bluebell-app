@@ -1,62 +1,33 @@
 /**
  * Login Page - Google sign-in
- * Safari (iOS): uses signInWithRedirect (popups blocked)
- * Chrome (Android/Desktop): uses signInWithPopup
+ * Uses signInWithPopup for all platforms
  */
-import React, { useState, useEffect } from 'react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import React, { useState } from 'react';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check redirect result on load (for Safari/iOS redirect flow)
-  useEffect(() => {
-    setLoading(true);
-    getRedirectResult(auth)
-      .then((result) => {
-        if (!result) setLoading(false); // No redirect result, show login button
-      })
-      .catch((err) => {
-        console.error('Redirect result error:', err);
-        setError(err.message || 'Login failed');
-        setLoading(false);
-      });
-  }, []);
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
 
-    // Detect Safari (iOS or Mac)
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
     try {
-      if (isSafari || isIOS) {
-        // Safari/iOS: redirect is the only method that works reliably
-        await signInWithRedirect(auth, provider);
-        // Page navigates away — nothing runs after this
-      } else {
-        // Chrome/Android/Desktop: popup works
-        await signInWithPopup(auth, provider);
-      }
+      // Use popup for all platforms — most reliable
+      await signInWithPopup(auth, provider);
     } catch (err) {
       console.error('Login error:', err.code, err.message);
-      // If popup fails, try redirect as fallback
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
-        try {
-          await signInWithRedirect(auth, provider);
-        } catch (e) {
-          setError(e.message || 'Login failed');
-          setLoading(false);
-        }
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup blocked. Allow popups for this site and try again.');
       } else {
-        setError(err.code ? `${err.code}` : 'Login failed');
-        setLoading(false);
+        setError(err.code || 'Login failed');
       }
+      setLoading(false);
     }
   };
 
