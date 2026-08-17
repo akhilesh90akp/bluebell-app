@@ -28,10 +28,19 @@ export default function Dashboard() {
   const completed = events.filter(e => e.status === 'completed');
   const revenue = completed.reduce((sum, e) => sum + (e.totalAmount || 0), 0);
 
-  // Get upcoming confirmed events sorted by date (nearest first)
-  const upcoming = confirmed
-    .filter(e => e.date && daysUntil(e.date) >= 0)
-    .sort((a, b) => new Date(a.mainEvent?.date || a.date) - new Date(b.mainEvent?.date || b.date));
+  // Get confirmed events sorted by date (nearest future first, then past)
+  const getEvDate = (e) => e.mainEvent?.date || e.date || '';
+  const confirmedSorted = confirmed
+    .filter(e => getEvDate(e))
+    .sort((a, b) => new Date(getEvDate(a)) - new Date(getEvDate(b)));
+
+  // Separate upcoming (future/today) from past
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingConfirmed = confirmedSorted.filter(e => new Date(getEvDate(e)) >= today);
+  const pastConfirmed = confirmedSorted.filter(e => new Date(getEvDate(e)) < today).reverse();
+  // Show upcoming first, then past (most recent past on top)
+  const displayEvents = [...upcomingConfirmed, ...pastConfirmed];
 
   // Stats card configuration
   const stats = [
@@ -69,22 +78,24 @@ export default function Dashboard() {
         <Button icon={Settings} variant="ghost" onClick={() => navigate('/settings')}>Settings</Button>
       </div>
 
-      {/* Upcoming Events */}
+      {/* Confirmed Events */}
       <div>
-        <h2 className="text-lg font-semibold text-bb-text mb-3">Upcoming Events</h2>
+        <h2 className="text-lg font-semibold text-bb-text mb-3">Confirmed Events</h2>
 
-        {upcoming.length === 0 ? (
+        {displayEvents.length === 0 ? (
           <Card>
             <div className="text-center py-8">
               <CalendarDays size={40} className="mx-auto text-bb-muted mb-3" />
-              <p className="text-bb-muted">No upcoming events</p>
+              <p className="text-bb-muted">No confirmed events</p>
               <p className="text-sm text-bb-muted/60 mt-1">Confirm a draft to see it here</p>
             </div>
           </Card>
         ) : (
           <div className="space-y-3">
-            {upcoming.map(ev => {
-              const days = daysUntil(ev.date);
+            {displayEvents.map(ev => {
+              const evDate = getEvDate(ev);
+              const days = daysUntil(evDate);
+              const location = ev.mainEvent?.location || ev.eventLocation || '';
               return (
                 <Card key={ev.id} hover onClick={() => navigate(`/confirmed`)}>
                   <div className="flex items-center justify-between">
@@ -96,12 +107,12 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3 text-sm text-bb-muted">
                         <span className="flex items-center gap-1">
                           <CalendarDays size={14} />
-                          {formatDateReadable(ev.date)}
+                          {formatDateReadable(evDate)}
                         </span>
-                        {ev.eventLocation && (
+                        {location && (
                           <span className="flex items-center gap-1 truncate">
                             <MapPin size={14} />
-                            {ev.eventLocation}
+                            {location}
                           </span>
                         )}
                       </div>
@@ -109,9 +120,16 @@ export default function Dashboard() {
 
                     <div className="flex items-center gap-2 ml-2">
                       {/* Color-coded urgency badge */}
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${days <= 3 ? 'bg-red-100 text-red-700' : days <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d`}
-                      </span>
+                      {days !== null && (
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                          days < 0 ? 'bg-gray-100 text-gray-600' :
+                          days <= 3 ? 'bg-red-100 text-red-700' :
+                          days <= 7 ? 'bg-amber-100 text-amber-700' :
+                          'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d`}
+                        </span>
+                      )}
                       {/* Quick call button */}
                       {ev.clientPhone && (
                         <a

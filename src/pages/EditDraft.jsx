@@ -311,7 +311,13 @@ export default function EditDraft() {
       itemPrices: newPrices,
     });
     showToast('Changes saved');
-    navigate('/drafts', { replace: true });
+    // Navigate back to the correct page based on event status
+    const status = event.status;
+    if (status === 'confirmed' || status === 'completed') {
+      navigate('/confirmed', { replace: true });
+    } else {
+      navigate('/drafts', { replace: true });
+    }
   };
 
   return (

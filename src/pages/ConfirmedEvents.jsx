@@ -50,7 +50,7 @@ export default function ConfirmedEvents() {
   const { events, categories, updateEvent, deleteEvent, showToast } = useApp();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'confirmed' | 'completed'
+  const [statusFilter, setStatusFilter] = useState('confirmed'); // 'confirmed' | 'completed'
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
   const [priceModal, setPriceModal] = useState(null); // event id for pricing modal
   const [newItem, setNewItem] = useState('');
@@ -61,11 +61,7 @@ export default function ConfirmedEvents() {
 
   // Filter confirmed/completed events by status tab and search query
   const confirmedEvents = events
-    .filter(e => {
-      if (statusFilter === 'confirmed') return e.status === 'confirmed';
-      if (statusFilter === 'completed') return e.status === 'completed';
-      return e.status === 'confirmed' || e.status === 'completed';
-    })
+    .filter(e => e.status === statusFilter)
     .filter(e => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -75,7 +71,7 @@ export default function ConfirmedEvents() {
         (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
+    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
 
   /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {
@@ -190,7 +186,6 @@ export default function ConfirmedEvents() {
       {/* Status Filter Tabs */}
       <div className="flex gap-1 bg-bb-input rounded-lg p-1">
         {[
-          { key: 'all', label: 'All' },
           { key: 'confirmed', label: 'Confirmed' },
           { key: 'completed', label: 'Completed' },
         ].map(tab => (
@@ -228,46 +223,57 @@ export default function ConfirmedEvents() {
                 <div className="space-y-3">
                   {/* Collapsed Header - Clickable */}
                   <div
-                    className="flex items-start justify-between cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => toggleExpand(ev.id)}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-bb-text truncate">{ev.clientName}</p>
-                        <Badge variant={ev.status}>{ev.eventType}</Badge>
-                        <Badge variant={ev.status}>{ev.status}</Badge>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                        {evDate && (
-                          <span className="flex items-center gap-1">
-                            <CalendarDays size={14} />
-                            {formatDateReadable(evDate)}
+                    {/* Line 1: Event name + expand arrow */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="font-semibold text-bb-text truncate flex-1 mr-2">{ev.clientName}</p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {days !== null && days >= 0 && ev.status === 'confirmed' && (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            days <= 3 ? 'bg-red-100 text-red-700' :
+                            days <= 7 ? 'bg-amber-100 text-amber-700' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d`}
                           </span>
                         )}
-                        {(ev.subEvents || []).length > 0 && (
-                          <span className="text-xs text-bb-accent">
-                            +{ev.subEvents.length} sub-event{ev.subEvents.length > 1 ? 's' : ''}
-                          </span>
+                        {isExpanded ? (
+                          <ChevronUp size={18} className="text-bb-muted" />
+                        ) : (
+                          <ChevronDown size={18} className="text-bb-muted" />
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+
+                    {/* Line 2: Chips + total amount */}
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <Badge variant={ev.status}>{ev.eventType}</Badge>
+                      <Badge variant={ev.status}>{ev.status}</Badge>
                       {ev.totalAmount > 0 && (
-                        <span className="font-bold text-emerald-600 text-sm">{formatCurrency(ev.totalAmount)}</span>
+                        <span className="font-bold text-emerald-600 text-sm ml-auto">{formatCurrency(ev.totalAmount)}</span>
                       )}
-                      {days !== null && days >= 0 && ev.status === 'confirmed' && (
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          days <= 3 ? 'bg-red-100 text-red-700' :
-                          days <= 7 ? 'bg-amber-100 text-amber-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d`}
+                    </div>
+
+                    {/* Line 3: Date, venue, sub-events */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
+                      {evDate && (
+                        <span className="flex items-center gap-1">
+                          <CalendarDays size={14} />
+                          {formatDateReadable(evDate)}
                         </span>
                       )}
-                      {isExpanded ? (
-                        <ChevronUp size={18} className="text-bb-muted" />
-                      ) : (
-                        <ChevronDown size={18} className="text-bb-muted" />
+                      {(ev.mainEvent?.location || ev.eventLocation) && (
+                        <span className="flex items-center gap-1 truncate max-w-[180px]">
+                          <MapPin size={14} />
+                          {ev.mainEvent?.location || ev.eventLocation}
+                        </span>
+                      )}
+                      {(ev.subEvents || []).length > 0 && (
+                        <span className="text-xs text-bb-accent">
+                          +{ev.subEvents.length} sub-event{ev.subEvents.length > 1 ? 's' : ''}
+                        </span>
                       )}
                     </div>
                   </div>

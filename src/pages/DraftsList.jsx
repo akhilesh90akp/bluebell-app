@@ -72,7 +72,7 @@ export default function DraftsList() {
         getEventLocation(e).toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
+    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
 
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {
@@ -134,54 +134,56 @@ export default function DraftsList() {
                 <div className="space-y-3">
                   {/* Collapsed Header - Clickable */}
                   <div
-                    className="flex items-start justify-between cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => toggleExpand(ev.id)}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-bb-text truncate">{ev.clientName}</p>
-                        <Badge variant="draft">{ev.eventType}</Badge>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                        {evDate && (
-                          <span className="flex items-center gap-1">
-                            <CalendarDays size={14} />
-                            {formatDateReadable(evDate)}
+                    {/* Line 1: Event name + arrow */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="font-semibold text-bb-text truncate flex-1 mr-2">{ev.clientName}</p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {days !== null && (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            days < 0 ? 'bg-red-100 text-red-700' :
+                            days <= 3 ? 'bg-amber-100 text-amber-700' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `${days}d`}
                           </span>
                         )}
-                        {location && (
-                          <span className="flex items-center gap-1 truncate max-w-[200px]">
-                            <MapPin size={14} />
-                            {location}
-                          </span>
-                        )}
-                        {allItems.length > 0 && (
-                          <span className="text-xs text-bb-muted">
-                            {allItems.length} item{allItems.length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                        {subEventCount > 0 && (
-                          <span className="text-xs text-bb-accent">
-                            +{subEventCount} sub-event{subEventCount > 1 ? 's' : ''}
-                          </span>
+                        {isExpanded ? (
+                          <ChevronUp size={18} className="text-bb-muted" />
+                        ) : (
+                          <ChevronDown size={18} className="text-bb-muted" />
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Color-coded days remaining badge */}
-                      {days !== null && (
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          days < 0 ? 'bg-red-100 text-red-700' :
-                          days <= 3 ? 'bg-amber-100 text-amber-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `${days}d`}
+
+                    {/* Line 2: Chips + budget */}
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <Badge variant="draft">{ev.eventType}</Badge>
+                      {ev.budget > 0 && (
+                        <span className="text-sm text-bb-muted ml-auto">{formatCurrency(ev.budget)}</span>
+                      )}
+                    </div>
+
+                    {/* Line 3: Date, venue, sub-events */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
+                      {evDate && (
+                        <span className="flex items-center gap-1">
+                          <CalendarDays size={14} />
+                          {formatDateReadable(evDate)}
                         </span>
                       )}
-                      {isExpanded ? (
-                        <ChevronUp size={18} className="text-bb-muted" />
-                      ) : (
-                        <ChevronDown size={18} className="text-bb-muted" />
+                      {location && (
+                        <span className="flex items-center gap-1 truncate max-w-[180px]">
+                          <MapPin size={14} />
+                          {location}
+                        </span>
+                      )}
+                      {subEventCount > 0 && (
+                        <span className="text-xs text-bb-accent">
+                          +{subEventCount} sub-event{subEventCount > 1 ? 's' : ''}
+                        </span>
                       )}
                     </div>
                   </div>
