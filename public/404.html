@@ -3,9 +3,17 @@
 <head>
   <meta charset="utf-8">
   <script>
-    // GitHub Pages SPA redirect - handles page refresh on sub-routes
+    // GitHub Pages SPA redirect
+    // Converts the path to a query param so index.html can restore it
+    var basePath = '/bluebell-app';
     var path = window.location.pathname;
-    window.location.replace('/bluebell-app/' + '?p=' + path);
+    // Remove the base path prefix to get the actual route
+    if (path.startsWith(basePath)) {
+      path = path.slice(basePath.length);
+    }
+    // Redirect to the app root with the path encoded in the query string
+    var search = window.location.search ? '&' + window.location.search.slice(1) : '';
+    window.location.replace(basePath + '/?p=' + encodeURIComponent(path) + search);
   </script>
 </head>
 <body></body>

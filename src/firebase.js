@@ -1,13 +1,16 @@
 /**
  * Firebase Configuration & Initialization
+ * 
+ * Auth persistence is set to IndexedDB (most reliable on mobile/PWA).
+ * Firestore uses persistent cache by default in Firebase v10+.
  */
 import { initializeApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, indexedDBLocalPersistence, browserLocalPersistence, initializeAuth } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCGtwV4ePNuGIdzULROXZWPACdImEzuA-0",
-  authDomain: "bluebell-event.netlify.app",
+  authDomain: "bluebell-event.firebaseapp.com",
   projectId: "bluebell-event",
   storageBucket: "bluebell-event.firebasestorage.app",
   messagingSenderId: "282114023514",
@@ -16,10 +19,27 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
 
-// Ensure auth persists across page reloads and browser restarts
-setPersistence(auth, browserLocalPersistence);
+// Initialize auth with IndexedDB persistence (most reliable on mobile/PWA)
+// Falls back to localStorage if IndexedDB is unavailable
+let auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+  });
+} catch (e) {
+  // If already initialized (hot reload in dev), get existing instance
+  auth = getAuth(app);
+}
 
-export const db = getFirestore(app);
+export { auth };
+
+// Initialize Firestore with persistent local cache
+// This allows the app to work offline and syncs when back online
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
+
 export default app;

@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/bluebell-app/favicon.svg" />
+    <link rel="apple-touch-icon" href="/bluebell-app/icons/icon-192.png" />
+    <link rel="manifest" href="/bluebell-app/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#331948" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,14 +15,32 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // GitHub Pages SPA redirect handler
+      // Restores the real URL from ?p= query param before React mounts
+      (function() {
+        var params = new URLSearchParams(window.location.search);
+        var redirectPath = params.get('p');
+        if (redirectPath) {
+          params.delete('p');
+          var remaining = params.toString();
+          var newUrl = redirectPath + (remaining ? '?' + remaining : '');
+          window.history.replaceState(null, '', newUrl);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // Register Service Worker for PWA
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/bluebell-app/sw.js', {scope: '/bluebell-app/'})
-            .then(() => console.log('SW registered'))
-            .catch((err) => console.log('SW registration failed:', err));
+            .then(function(reg) {
+              console.log('SW registered');
+              // Check for updates periodically
+              setInterval(function() { reg.update(); }, 60 * 60 * 1000);
+            })
+            .catch(function(err) { console.log('SW registration failed:', err); });
         });
       }
     </script>
