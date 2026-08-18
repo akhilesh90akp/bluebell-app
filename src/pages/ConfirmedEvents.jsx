@@ -71,7 +71,19 @@ export default function ConfirmedEvents() {
         (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
+    .sort((a, b) => {
+      const dateA = new Date(getEventDate(a) || a.createdAt);
+      const dateB = new Date(getEventDate(b) || b.createdAt);
+      const now = Date.now();
+      const diffA = dateA - now;
+      const diffB = dateB - now;
+      // Upcoming events (positive diff) come first, sorted soonest first
+      // Past events (negative diff) come after, sorted most recent first
+      if (diffA >= 0 && diffB >= 0) return diffA - diffB; // both upcoming: soonest first
+      if (diffA < 0 && diffB < 0) return diffB - diffA;   // both past: most recent first
+      if (diffA >= 0) return -1; // a is upcoming, b is past → a first
+      return 1; // b is upcoming, a is past → b first
+    });
 
   /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {

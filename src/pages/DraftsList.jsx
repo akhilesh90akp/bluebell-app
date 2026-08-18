@@ -72,7 +72,19 @@ export default function DraftsList() {
         getEventLocation(e).toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
+    .sort((a, b) => {
+      const dateA = new Date(getEventDate(a) || a.createdAt);
+      const dateB = new Date(getEventDate(b) || b.createdAt);
+      const now = Date.now();
+      const diffA = dateA - now;
+      const diffB = dateB - now;
+      // Upcoming events (positive diff) come first, sorted soonest first
+      // Past events (negative diff) come after, sorted most recent first
+      if (diffA >= 0 && diffB >= 0) return diffA - diffB;
+      if (diffA < 0 && diffB < 0) return diffB - diffA;
+      if (diffA >= 0) return -1;
+      return 1;
+    });
 
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {

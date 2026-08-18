@@ -92,7 +92,14 @@ export default function Reports() {
     }).sort((a, b) => {
       const dateA = new Date(a.mainEvent?.date || a.date || a.createdAt);
       const dateB = new Date(b.mainEvent?.date || b.date || b.createdAt);
-      return dateA - dateB;
+      const now = Date.now();
+      const diffA = dateA - now;
+      const diffB = dateB - now;
+      // Upcoming first (soonest on top), then past (most recent on top)
+      if (diffA >= 0 && diffB >= 0) return diffA - diffB;
+      if (diffA < 0 && diffB < 0) return diffB - diffA;
+      if (diffA >= 0) return -1;
+      return 1;
     });
   }, [events, filter, month, year, dateFrom, dateTo, statusFilter]);
 
