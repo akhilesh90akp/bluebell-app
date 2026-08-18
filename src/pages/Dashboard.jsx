@@ -11,7 +11,7 @@ import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
-import { formatCurrency, formatDateReadable, daysUntil, telLink } from '../utils/helpers';
+import { formatCurrency, formatDateReadable, daysUntil, telLink, sortByActiveDate, getActiveDate } from '../utils/helpers';
 import {
   FileText, CheckCircle, PartyPopper, IndianRupee,
   Plus, List, Settings, Phone, CalendarDays, MapPin, BarChart3,
@@ -28,19 +28,8 @@ export default function Dashboard() {
   const completed = events.filter(e => e.status === 'completed');
   const revenue = completed.reduce((sum, e) => sum + (e.totalAmount || 0), 0);
 
-  // Get confirmed events sorted by date (nearest future first, then past)
-  const getEvDate = (e) => e.mainEvent?.date || e.date || '';
-  const confirmedSorted = confirmed
-    .filter(e => getEvDate(e))
-    .sort((a, b) => new Date(getEvDate(a)) - new Date(getEvDate(b)));
-
-  // Separate upcoming (future/today) from past
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const upcomingConfirmed = confirmedSorted.filter(e => new Date(getEvDate(e)) >= today);
-  const pastConfirmed = confirmedSorted.filter(e => new Date(getEvDate(e)) < today).reverse();
-  // Show upcoming first, then past (most recent past on top)
-  const displayEvents = [...upcomingConfirmed, ...pastConfirmed];
+  // Get confirmed events sorted by active date (nearest first)
+  const displayEvents = sortByActiveDate(confirmed);
 
   // Stats card configuration
   const stats = [
@@ -93,8 +82,8 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-3">
             {displayEvents.map(ev => {
-              const evDate = getEvDate(ev);
-              const days = daysUntil(evDate);
+              const activeDateStr = getActiveDate(ev);
+              const days = daysUntil(activeDateStr);
               const location = ev.mainEvent?.location || ev.eventLocation || '';
               return (
                 <Card key={ev.id} hover onClick={() => navigate(`/confirmed`)}>
@@ -107,7 +96,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3 text-sm text-bb-muted">
                         <span className="flex items-center gap-1">
                           <CalendarDays size={14} />
-                          {formatDateReadable(evDate)}
+                          {formatDateReadable(activeDateStr)}
                         </span>
                         {location && (
                           <span className="flex items-center gap-1 truncate">

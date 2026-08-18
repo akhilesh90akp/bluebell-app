@@ -11,7 +11,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
-import { formatCurrency, formatDateReadable } from '../utils/helpers';
+import { formatCurrency, formatDateReadable, getActiveDate } from '../utils/helpers';
 import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
 
 /** Displays event reports with date-based filtering and summary stats */
@@ -90,8 +90,8 @@ export default function Reports() {
       }
       return true;
     }).sort((a, b) => {
-      const dateA = new Date(a.mainEvent?.date || a.date || a.createdAt);
-      const dateB = new Date(b.mainEvent?.date || b.date || b.createdAt);
+      const dateA = new Date(getActiveDate(a));
+      const dateB = new Date(getActiveDate(b));
       const now = Date.now();
       const diffA = dateA - now;
       const diffB = dateB - now;

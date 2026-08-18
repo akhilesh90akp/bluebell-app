@@ -111,3 +111,93 @@ export const genInvoiceNo = (prefix = 'BB', existingCount = 0) => {
   const fy2 = (parseInt(fy1)+1).toString();
   return `${prefix}-B2C${fy1}${fy2}-${String(existingCount+1).padStart(3,'0')}`;
 };
+
+/**
+ * Gets all dates from an event (main + sub-events) with labels.
+ * Returns array sorted by date ascending: [{ date, label, isPast }]
+ * @param {object} ev - Event object
+ * @returns {Array} Array of date objects with metadata
+ */
+export const getAllEventDates = (ev) => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const dates = [];
+
+  if (ev.mainEvent?.date) {
+    const d = new Date(ev.mainEvent.date);
+    d.setHours(0, 0, 0, 0);
+    dates.push({
+      date: ev.mainEvent.date,
+      label: ev.mainEvent.name || 'Main Event',
+      isPast: d < now,
+      isMain: true,
+    });
+  } else if (ev.date) {
+    const d = new Date(ev.date);
+    d.setHours(0, 0, 0, 0);
+    dates.push({
+      date: ev.date,
+      label: ev.eventType || 'Event',
+      isPast: d < now,
+      isMain: true,
+    });
+  }
+
+  if (ev.subEvents) {
+    ev.subEvents.forEach(s => {
+      if (s.date) {
+        const d = new Date(s.date);
+        d.setHours(0, 0, 0, 0);
+        dates.push({
+          date: s.date,
+          label: s.name || 'Sub Event',
+          isPast: d < now,
+          isMain: false,
+        });
+      }
+    });
+  }
+
+  // Sort by date ascending
+  dates.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return dates;
+};
+
+/**
+ * Gets the "active" date for sorting — the next upcoming date (sub or main).
+ * If all dates are past, returns the most recent (latest) past date.
+ * @param {object} ev - Event object
+ * @returns {string} The active date string for sorting
+ */
+export const getActiveDate = (ev) => {
+  const dates = getAllEventDates(ev);
+  if (dates.length === 0) return ev.createdAt || '';
+
+  // Find first upcoming date (not past)
+  const upcoming = dates.find(d => !d.isPast);
+  if (upcoming) return upcoming.date;
+
+  // All past — return the most recent one (last in sorted array)
+  return dates[dates.length - 1].date;
+};
+
+/**
+ * Sorts events by active date: upcoming soonest first, then past most recent first.
+ * @param {Array} events - Array of event objects
+ * @returns {Array} Sorted events array
+ */
+export const sortByActiveDate = (events) => {
+  const now = Date.now();
+  return [...events].sort((a, b) => {
+    const dateA = new Date(getActiveDate(a));
+    const dateB = new Date(getActiveDate(b));
+    const diffA = dateA - now;
+    const diffB = dateB - now;
+    // Upcoming events first, sorted soonest on top
+    // Past events after, sorted most recent on top
+    if (diffA >= 0 && diffB >= 0) return diffA - diffB;
+    if (diffA < 0 && diffB < 0) return diffB - diffA;
+    if (diffA >= 0) return -1;
+    return 1;
+  });
+};

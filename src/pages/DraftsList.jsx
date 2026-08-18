@@ -13,7 +13,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
-import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink } from '../utils/helpers';
+import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink, sortByActiveDate, getAllEventDates, getActiveDate } from '../utils/helpers';
 import {
   Search, Phone, MessageSquare, Edit, FileText, CheckCircle,
   Trash2, CalendarDays, MapPin, PackageOpen, ChevronDown, ChevronUp,
@@ -61,30 +61,19 @@ export default function DraftsList() {
   const [expandedId, setExpandedId] = useState(null);
 
   // Filter drafts by search query (client name, type, or location)
-  const drafts = events
-    .filter(e => e.status === 'draft')
-    .filter(e => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        e.clientName?.toLowerCase().includes(q) ||
-        e.eventType?.toLowerCase().includes(q) ||
-        getEventLocation(e).toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      const dateA = new Date(getEventDate(a) || a.createdAt);
-      const dateB = new Date(getEventDate(b) || b.createdAt);
-      const now = Date.now();
-      const diffA = dateA - now;
-      const diffB = dateB - now;
-      // Upcoming events (positive diff) come first, sorted soonest first
-      // Past events (negative diff) come after, sorted most recent first
-      if (diffA >= 0 && diffB >= 0) return diffA - diffB;
-      if (diffA < 0 && diffB < 0) return diffB - diffA;
-      if (diffA >= 0) return -1;
-      return 1;
-    });
+  const drafts = sortByActiveDate(
+    events
+      .filter(e => e.status === 'draft')
+      .filter(e => {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        return (
+          e.clientName?.toLowerCase().includes(q) ||
+          e.eventType?.toLowerCase().includes(q) ||
+          getEventLocation(e).toLowerCase().includes(q)
+        );
+      })
+  );
 
   /** Promotes a draft to confirmed status */
   const confirmEvent = (id) => {
@@ -135,10 +124,10 @@ export default function DraftsList() {
       ) : (
         <div className="space-y-3">
           {drafts.map(ev => {
-            const evDate = getEventDate(ev);
-            const days = daysUntil(evDate);
+            const eventDates = getAllEventDates(ev);
+            const activeDateStr = getActiveDate(ev);
+            const activeDays = daysUntil(activeDateStr);
             const allItems = getAllItems(ev);
-            const subEventCount = (ev.subEvents || []).length;
             const isExpanded = expandedId === ev.id;
             const location = getEventLocation(ev);
             return (
@@ -153,13 +142,13 @@ export default function DraftsList() {
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-semibold text-bb-text truncate flex-1 mr-2">{ev.clientName}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {days !== null && (
+                        {activeDays !== null && (
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            days < 0 ? 'bg-red-100 text-red-700' :
-                            days <= 3 ? 'bg-amber-100 text-amber-700' :
+                            activeDays < 0 ? 'bg-red-100 text-red-700' :
+                            activeDays <= 3 ? 'bg-amber-100 text-amber-700' :
                             'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `${days}d`}
+                            {activeDays < 0 ? `${Math.abs(activeDays)}d ago` : activeDays === 0 ? 'Today' : `${activeDays}d`}
                           </span>
                         )}
                         {isExpanded ? (
@@ -178,23 +167,33 @@ export default function DraftsList() {
                       )}
                     </div>
 
-                    {/* Line 3: Date, venue, sub-events */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                      {evDate && (
-                        <span className="flex items-center gap-1">
-                          <CalendarDays size={14} />
-                          {formatDateReadable(evDate)}
-                        </span>
+                    {/* Line 3: Dates (with active highlighted), venue */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      {eventDates.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CalendarDays size={14} className="text-bb-muted" />
+                          {eventDates.map((d, idx) => {
+                            const isActive = d.date === activeDateStr;
+                            return (
+                              <span key={idx} className={`${
+                                isActive
+                                  ? 'text-bb-accent font-semibold'
+                                  : d.isPast ? 'text-bb-muted/50 line-through' : 'text-bb-muted'
+                              }`}>
+                                {formatDateReadable(d.date)}
+                                {eventDates.length > 1 && (
+                                  <span className="text-[10px] ml-0.5">({d.isMain ? 'main' : d.label})</span>
+                                )}
+                                {idx < eventDates.length - 1 && <span className="text-bb-muted mx-0.5">•</span>}
+                              </span>
+                            );
+                          })}
+                        </div>
                       )}
                       {location && (
-                        <span className="flex items-center gap-1 truncate max-w-[180px]">
+                        <span className="flex items-center gap-1 truncate max-w-[180px] text-bb-muted">
                           <MapPin size={14} />
                           {location}
-                        </span>
-                      )}
-                      {subEventCount > 0 && (
-                        <span className="text-xs text-bb-accent">
-                          +{subEventCount} sub-event{subEventCount > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>

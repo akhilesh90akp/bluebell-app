@@ -14,7 +14,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
-import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink } from '../utils/helpers';
+import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink, sortByActiveDate, getAllEventDates, getActiveDate } from '../utils/helpers';
 import {
   Search, Phone, MessageSquare, FileText, CheckCircle2,
   CalendarDays, MapPin, PackageOpen, Plus, Receipt, Edit3,
@@ -60,30 +60,19 @@ export default function ConfirmedEvents() {
   const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
 
   // Filter confirmed/completed events by status tab and search query
-  const confirmedEvents = events
-    .filter(e => e.status === statusFilter)
-    .filter(e => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        e.clientName?.toLowerCase().includes(q) ||
-        e.eventType?.toLowerCase().includes(q) ||
-        (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      const dateA = new Date(getEventDate(a) || a.createdAt);
-      const dateB = new Date(getEventDate(b) || b.createdAt);
-      const now = Date.now();
-      const diffA = dateA - now;
-      const diffB = dateB - now;
-      // Upcoming events (positive diff) come first, sorted soonest first
-      // Past events (negative diff) come after, sorted most recent first
-      if (diffA >= 0 && diffB >= 0) return diffA - diffB; // both upcoming: soonest first
-      if (diffA < 0 && diffB < 0) return diffB - diffA;   // both past: most recent first
-      if (diffA >= 0) return -1; // a is upcoming, b is past → a first
-      return 1; // b is upcoming, a is past → b first
-    });
+  const confirmedEvents = sortByActiveDate(
+    events
+      .filter(e => e.status === statusFilter)
+      .filter(e => {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        return (
+          e.clientName?.toLowerCase().includes(q) ||
+          e.eventType?.toLowerCase().includes(q) ||
+          (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
+        );
+      })
+  );
 
   /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {
@@ -226,8 +215,9 @@ export default function ConfirmedEvents() {
       ) : (
         <div className="space-y-3">
           {confirmedEvents.map(ev => {
-            const evDate = getEventDate(ev);
-            const days = daysUntil(evDate);
+            const eventDates = getAllEventDates(ev);
+            const activeDateStr = getActiveDate(ev);
+            const activeDays = daysUntil(activeDateStr);
             const allItems = getAllItems(ev);
             const isExpanded = expandedId === ev.id;
             return (
@@ -242,13 +232,13 @@ export default function ConfirmedEvents() {
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-semibold text-bb-text truncate flex-1 mr-2">{ev.clientName}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {days !== null && days >= 0 && ev.status === 'confirmed' && (
+                        {activeDays !== null && activeDays >= 0 && ev.status === 'confirmed' && (
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            days <= 3 ? 'bg-red-100 text-red-700' :
-                            days <= 7 ? 'bg-amber-100 text-amber-700' :
+                            activeDays <= 3 ? 'bg-red-100 text-red-700' :
+                            activeDays <= 7 ? 'bg-amber-100 text-amber-700' :
                             'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d`}
+                            {activeDays === 0 ? 'Today' : activeDays === 1 ? 'Tomorrow' : `${activeDays}d`}
                           </span>
                         )}
                         {isExpanded ? (
@@ -268,23 +258,33 @@ export default function ConfirmedEvents() {
                       )}
                     </div>
 
-                    {/* Line 3: Date, venue, sub-events */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bb-muted">
-                      {evDate && (
-                        <span className="flex items-center gap-1">
-                          <CalendarDays size={14} />
-                          {formatDateReadable(evDate)}
-                        </span>
+                    {/* Line 3: Dates (with active highlighted), venue */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      {eventDates.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CalendarDays size={14} className="text-bb-muted" />
+                          {eventDates.map((d, idx) => {
+                            const isActive = d.date === activeDateStr;
+                            return (
+                              <span key={idx} className={`${
+                                isActive
+                                  ? 'text-bb-accent font-semibold'
+                                  : d.isPast ? 'text-bb-muted/50 line-through' : 'text-bb-muted'
+                              }`}>
+                                {formatDateReadable(d.date)}
+                                {eventDates.length > 1 && (
+                                  <span className="text-[10px] ml-0.5">({d.isMain ? 'main' : d.label})</span>
+                                )}
+                                {idx < eventDates.length - 1 && <span className="text-bb-muted mx-0.5">•</span>}
+                              </span>
+                            );
+                          })}
+                        </div>
                       )}
                       {(ev.mainEvent?.location || ev.eventLocation) && (
-                        <span className="flex items-center gap-1 truncate max-w-[180px]">
+                        <span className="flex items-center gap-1 truncate max-w-[180px] text-bb-muted">
                           <MapPin size={14} />
                           {ev.mainEvent?.location || ev.eventLocation}
-                        </span>
-                      )}
-                      {(ev.subEvents || []).length > 0 && (
-                        <span className="text-xs text-bb-accent">
-                          +{ev.subEvents.length} sub-event{ev.subEvents.length > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
