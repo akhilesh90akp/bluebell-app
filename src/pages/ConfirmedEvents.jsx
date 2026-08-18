@@ -71,7 +71,7 @@ export default function ConfirmedEvents() {
         (e.mainEvent?.location || e.eventLocation || '').toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => new Date(getEventDate(b) || b.createdAt) - new Date(getEventDate(a) || a.createdAt));
+    .sort((a, b) => new Date(getEventDate(a) || a.createdAt) - new Date(getEventDate(b) || b.createdAt));
 
   /** Adds a new item to an event (choosing target: main or sub-event) */
   const handleAddItem = (eventId, item) => {

@@ -1,12 +1,12 @@
 /**
  * Firebase Configuration & Initialization
  * 
- * Auth persistence is set to IndexedDB (most reliable on mobile/PWA).
- * Firestore uses persistent cache by default in Firebase v10+.
+ * Auth persistence: browserLocalPersistence (localStorage-based, works on all platforms)
+ * Firestore: persistent local cache for offline support
  */
 import { initializeApp } from 'firebase/app';
-import { getAuth, indexedDBLocalPersistence, browserLocalPersistence, initializeAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCGtwV4ePNuGIdzULROXZWPACdImEzuA-0",
@@ -20,26 +20,26 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize auth with IndexedDB persistence (most reliable on mobile/PWA)
-// Falls back to localStorage if IndexedDB is unavailable
-let auth;
-try {
-  auth = initializeAuth(app, {
-    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
-  });
-} catch (e) {
-  // If already initialized (hot reload in dev), get existing instance
-  auth = getAuth(app);
-}
-
-export { auth };
-
-// Initialize Firestore with persistent local cache
-// This allows the app to work offline and syncs when back online
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
+// Auth: use getAuth (universally compatible, no IndexedDB dependency)
+// Then set persistence to localStorage (works on all Android browsers/PWAs)
+export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Auth persistence setup failed:', err.code);
 });
 
+// Firestore: try persistent cache, fallback to default if not supported
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch (e) {
+  // Already initialized or persistence not supported on this device
+  console.warn('Firestore persistent cache unavailable, using default:', e.message);
+  db = getFirestore(app);
+}
+
+export { db };
 export default app;
