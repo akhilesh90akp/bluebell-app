@@ -7,7 +7,7 @@
  * - API calls (Firebase, etc.): Network-only (never cache)
  */
 
-const CACHE_NAME = 'bluebell-v4';
+const CACHE_NAME = 'bluebell-v5';
 const BASE = '/bluebell-app/';
 
 // Assets to pre-cache on install
