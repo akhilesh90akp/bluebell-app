@@ -196,11 +196,6 @@ export default function DraftsList() {
                     {/* Line 2: Chips + budget */}
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <Badge variant="draft">{ev.eventType}</Badge>
-                      {activeDays !== null && activeDays < 0 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                          {Math.abs(activeDays) === 1 ? '1 day ago' : `${Math.abs(activeDays)} days ago`}
-                        </span>
-                      )}
                       {ev.budget > 0 && (
                         <span className="text-sm text-bb-muted ml-auto">{formatCurrency(ev.budget)}</span>
                       )}

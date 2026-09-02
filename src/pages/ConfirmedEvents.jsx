@@ -287,13 +287,14 @@ export default function ConfirmedEvents() {
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-semibold text-bb-text truncate flex-1 mr-2">{ev.clientName}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {activeDays !== null && activeDays >= 0 && ev.status === 'confirmed' && (
+                        {activeDays !== null && ev.status === 'confirmed' && (
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            activeDays < 0 ? 'bg-red-100 text-red-700' :
                             activeDays <= 3 ? 'bg-red-100 text-red-700' :
                             activeDays <= 7 ? 'bg-amber-100 text-amber-700' :
                             'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {activeDays === 0 ? 'Today' : activeDays === 1 ? 'Tomorrow' : `${activeDays}d`}
+                            {activeDays < 0 ? `${Math.abs(activeDays)}d ago` : activeDays === 0 ? 'Today' : activeDays === 1 ? 'Tomorrow' : `${activeDays}d`}
                           </span>
                         )}
                         {isExpanded ? (
@@ -308,11 +309,6 @@ export default function ConfirmedEvents() {
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <Badge variant={ev.status}>{ev.eventType}</Badge>
                       <Badge variant={ev.status}>{ev.status}</Badge>
-                      {ev.status === 'confirmed' && activeDays !== null && activeDays < 0 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                          {Math.abs(activeDays) === 1 ? '1 day ago' : `${Math.abs(activeDays)} days ago`}
-                        </span>
-                      )}
                       {ev.totalAmount > 0 && (
                         <span className="font-bold text-emerald-600 text-sm ml-auto">{formatCurrency(ev.totalAmount)}</span>
                       )}
