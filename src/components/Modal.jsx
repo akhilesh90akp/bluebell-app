@@ -4,6 +4,10 @@
  * A centered modal dialog with backdrop blur, close button, and configurable size.
  * Locks body scroll when open and supports click-outside-to-close.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 

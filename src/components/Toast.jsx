@@ -5,6 +5,10 @@
  * (positioned above the mobile nav bar). Auto-dismisses after 3 seconds.
  * Supports success (green) and error (red) types with enter/exit animation.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Toast notification rendered from context state */

@@ -1,11 +1,18 @@
 /**
- * ConfirmedEvents - Confirmed and completed events management
+ * ConfirmedEvents — Confirmed and completed events management
  *
  * Displays all confirmed/completed events with expandable details.
  * Provides functionality to add items (choosing main or sub-event),
  * set per-item pricing, mark events as done, and navigate to generators.
  * Backward compatible with old event format.
+ *
+ * All updateEvent/deleteEvent calls await the Firestore result before
+ * showing a success toast — see CODE_STRUCTURE.md §3-4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -20,6 +27,10 @@ import {
   CalendarDays, MapPin, PackageOpen, Plus, Receipt, Edit3,
   ChevronDown, ChevronUp, Home, Navigation, Trash2,
 } from 'lucide-react';
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 /**
  * Helper: get all items from an event (both old and new format)
@@ -45,10 +56,18 @@ function getEventDate(ev) {
   return ev.date || '';
 }
 
+// ============================================================
+// ConfirmedEvents — MAIN COMPONENT
+// ============================================================
+
 /** Manages confirmed events with pricing, item addition, and completion */
 export default function ConfirmedEvents() {
   const { events, categories, updateEvent, deleteEvent, showToast } = useApp();
   const navigate = useNavigate();
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('confirmed'); // 'confirmed' | 'completed'
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
@@ -58,6 +77,10 @@ export default function ConfirmedEvents() {
   const [prices, setPrices] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
+
+  // ------------------------------------------------------------
+  // DERIVED DATA
+  // ------------------------------------------------------------
 
   // Filter confirmed/completed events by status tab and search query
   const confirmedEvents = sortByActiveDate(
@@ -74,12 +97,17 @@ export default function ConfirmedEvents() {
       })
   );
 
-  /** Adds a new item to an event (choosing target: main or sub-event) */
-  const handleAddItem = (eventId, item) => {
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — ITEMS & PRICING
+  // ------------------------------------------------------------
+
+  /** Adds a new item to an event (choosing target: main or sub-event). Awaits the write and surfaces failures. */
+  const handleAddItem = async (eventId, item) => {
     if (!item.trim()) return;
     const ev = events.find(e => e.id === eventId);
     if (!ev) return;
 
+    let result;
     if (ev.mainEvent) {
       // New format: add to specified target
       if (addItemTarget === 'main') {
@@ -88,7 +116,7 @@ export default function ConfirmedEvents() {
           mainItems.push(item.trim());
           // Also add keyed price entry
           const newPrices = { ...(ev.itemPrices || {}), [`main::${item.trim()}`]: { qty: 1, rate: 0 } };
-          updateEvent(eventId, { mainEvent: { ...ev.mainEvent, items: mainItems }, itemPrices: newPrices });
+          result = await updateEvent(eventId, { mainEvent: { ...ev.mainEvent, items: mainItems }, itemPrices: newPrices });
         }
       } else {
         // Add to a sub-event
@@ -104,7 +132,7 @@ export default function ConfirmedEvents() {
         });
         // Also add keyed price entry
         const newPrices = { ...(ev.itemPrices || {}), [`${addItemTarget}::${item.trim()}`]: { qty: 1, rate: 0 } };
-        updateEvent(eventId, { subEvents, itemPrices: newPrices });
+        result = await updateEvent(eventId, { subEvents, itemPrices: newPrices });
       }
     } else {
       // Old format: flat items array
@@ -112,8 +140,11 @@ export default function ConfirmedEvents() {
       if (!items.includes(item.trim())) {
         items.push(item.trim());
         const newPrices = { ...(ev.itemPrices || {}), [`main::${item.trim()}`]: { qty: 1, rate: 0 } };
-        updateEvent(eventId, { items, itemPrices: newPrices });
+        result = await updateEvent(eventId, { items, itemPrices: newPrices });
       }
+    }
+    if (result && !result.success) {
+      showToast(result.error || 'Failed to add item', 'error');
     }
     setNewItem('');
   };
@@ -143,19 +174,39 @@ export default function ConfirmedEvents() {
     setPriceModal(ev.id);
   };
 
-  /** Saves item prices and calculates the total amount */
-  const savePrices = () => {
+  /** Saves item prices and calculates the total amount. Awaits the write and only toasts success on confirmation. */
+  const savePrices = async () => {
     if (!priceModal) return;
+    const eventId = priceModal;
     const total = Object.values(prices).reduce((sum, p) => sum + (p.qty * p.rate), 0);
-    updateEvent(priceModal, { itemPrices: prices, totalAmount: total });
+    const result = await updateEvent(eventId, { itemPrices: prices, totalAmount: total });
     setPriceModal(null);
-    showToast('Quotation saved');
+    if (result.success) {
+      showToast('Quotation saved');
+    } else {
+      showToast(result.error || 'Failed to save quotation', 'error');
+    }
   };
 
-  /** Marks an event as completed */
-  const markDone = (id) => {
-    updateEvent(id, { status: 'completed' });
-    showToast('Event marked as completed');
+  /** Marks an event as completed. Awaits the write and only toasts success on confirmation. */
+  const markDone = async (id) => {
+    const result = await updateEvent(id, { status: 'completed' });
+    if (result.success) {
+      showToast('Event marked as completed');
+    } else {
+      showToast(result.error || 'Failed to update event', 'error');
+    }
+  };
+
+  /** Executes the delete after modal confirmation. Awaits the write; deleteEvent() shows its own error toast on failure. */
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const id = deleteId;
+    setDeleteId(null); // close modal immediately regardless of outcome
+    const result = await deleteEvent(id);
+    if (result.success) {
+      showToast('Event deleted');
+    }
   };
 
   /** Toggles the expanded/collapsed state of an event card */
@@ -556,7 +607,7 @@ export default function ConfirmedEvents() {
         <p className="text-bb-muted mb-4">Are you sure you want to delete this event? This action cannot be undone.</p>
         <div className="flex gap-2 justify-end">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => { deleteEvent(deleteId); setDeleteId(null); showToast('Event deleted'); }}>Delete</Button>
+          <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </div>
       </Modal>
     </div>

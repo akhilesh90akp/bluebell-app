@@ -4,6 +4,10 @@
  * A styled native select element with label, error state, and required indicator.
  * Renders a list of string options with a default "Select..." placeholder.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Renders a styled dropdown select with label and validation */

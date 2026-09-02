@@ -1,11 +1,18 @@
 /**
- * BillGenerator - Invoice/bill document builder
+ * BillGenerator — Invoice/bill document builder
  *
  * Generates a professional GST-compliant invoice for completed events.
  * Groups items by main event and sub-events. Supports configurable invoice
  * number, discount, GST (intra/inter-state), and round-off.
  * Includes print and WhatsApp sharing capabilities.
+ *
+ * Read-only vs. Firestore: this page does not write any data back — it only
+ * reads `events`/`settings` from AppContext to build the printable document.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -17,6 +24,10 @@ import Card from '../components/Card';
 import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
 import { DEFAULT_SAC_CODE } from '../constants/data';
 import { ArrowLeft, Printer, MessageSquare } from 'lucide-react';
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 /**
  * Helper: get all items and event groups from an event (both old and new format).
@@ -80,6 +91,10 @@ function getEventItemsData(event) {
   return { allItems: items, eventGroups };
 }
 
+// ============================================================
+// BillGenerator — MAIN COMPONENT
+// ============================================================
+
 /** Builds and previews a printable invoice document for an event */
 export default function BillGenerator() {
   const { eventId } = useParams();
@@ -89,6 +104,10 @@ export default function BillGenerator() {
 
   // Count existing invoices for sequential numbering
   const billedCount = events.filter(e => e.invoiceNo).length;
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
 
   // Invoice configuration state
   const [invoiceNo, setInvoiceNo] = useState(() => genInvoiceNo(settings.invoicePrefix, billedCount));
@@ -103,6 +122,10 @@ export default function BillGenerator() {
 
   // Ref for printable section
   const pdfRef = useRef(null);
+
+  // ------------------------------------------------------------
+  // DERIVED / CALCULATED VALUES
+  // ------------------------------------------------------------
 
   // Get items and groups (backward compatible)
   const { allItems, eventGroups } = useMemo(() => event ? getEventItemsData(event) : { allItems: [], eventGroups: [] }, [event]);
@@ -132,6 +155,10 @@ export default function BillGenerator() {
       </div>
     );
   }
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS
+  // ------------------------------------------------------------
 
   /** Triggers the browser print dialog with descriptive PDF filename */
   const handlePrint = () => {
@@ -180,6 +207,10 @@ export default function BillGenerator() {
       window.open(waLink(phone, generateWhatsAppMsg()), '_blank');
     }
   };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="space-y-4 pb-8">

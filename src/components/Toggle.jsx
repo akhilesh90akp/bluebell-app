@@ -4,6 +4,10 @@
  * A custom-styled toggle switch with optional label and description text.
  * Wraps a hidden checkbox input for accessibility.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Renders a toggle switch with label and optional description */

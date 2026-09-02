@@ -1,10 +1,17 @@
 /**
- * Reports - Event analytics and reporting page
+ * Reports — Event analytics and reporting page
  *
  * Provides filtered views of event data with monthly, yearly, or custom
  * date range filters. Displays summary statistics and a tabular list
  * of events with their status and amounts. Supports print/PDF export.
+ *
+ * Read-only vs. Firestore: this page only reads `events`/`settings` from
+ * AppContext — it does not write anything back.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
@@ -14,9 +21,17 @@ import Badge from '../components/Badge';
 import { formatCurrency, formatDateReadable, getActiveDate } from '../utils/helpers';
 import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
 
+// ============================================================
+// Reports — MAIN COMPONENT
+// ============================================================
+
 /** Displays event reports with date-based filtering and summary stats */
 export default function Reports() {
   const { events, settings } = useApp();
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
   const [filter, setFilter] = useState('monthly'); // monthly | yearly | custom
   const [statusFilter, setStatusFilter] = useState('completed'); // all | completed | confirmed
   const [excludeGST, setExcludeGST] = useState(false);
@@ -29,6 +44,10 @@ export default function Reports() {
   const [year, setYear] = useState(() => String(new Date().getFullYear()));
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // ------------------------------------------------------------
+  // HELPERS
+  // ------------------------------------------------------------
 
   // Helper: calculate event total from itemPrices
   const getEventTotal = (event) => {
@@ -65,6 +84,10 @@ export default function Reports() {
     
     return total;
   };
+
+  // ------------------------------------------------------------
+  // DERIVED / CALCULATED VALUES
+  // ------------------------------------------------------------
 
   // Filter events based on selected date range and status
   const filteredEvents = useMemo(() => {
@@ -114,6 +137,10 @@ export default function Reports() {
   }, [filteredEvents]);
 
 
+  // ------------------------------------------------------------
+  // EVENT HANDLERS
+  // ------------------------------------------------------------
+
   /** Generate PDF report */
   const handleDownload = () => {
     const period = filter === 'monthly' ? month : filter === 'yearly' ? year : `${dateFrom} to ${dateTo}`;
@@ -136,6 +163,10 @@ export default function Reports() {
     { key: 'yearly', label: 'Yearly' },
     { key: 'custom', label: 'Custom' },
   ];
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div>

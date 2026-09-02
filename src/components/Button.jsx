@@ -4,6 +4,10 @@
  * A flexible button with multiple visual variants (primary, secondary, danger, etc.),
  * size options, optional leading icon, and full-width support.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Tailwind classes for each visual variant */

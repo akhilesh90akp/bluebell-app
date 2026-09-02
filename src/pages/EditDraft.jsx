@@ -1,10 +1,18 @@
 /**
- * EditDraft - Event editing form with sub-events support
+ * EditDraft — Event editing form with sub-events support
  *
  * Loads an existing event by ID from URL params and populates
  * the form with main event + sub-events structure.
  * Backward compatible: handles old events without mainEvent/subEvents.
+ *
+ * Save flow: handleSubmit awaits AppContext.updateEvent() and only shows a
+ * success toast / navigates away if the Firestore write actually succeeded.
+ * See CODE_STRUCTURE.md §4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -19,6 +27,10 @@ import {
   User, Phone, MessageSquare, MapPin, Calendar, Clock,
   IndianRupee, ChevronDown, ChevronUp, X, Plus, Save, StickyNote, ArrowLeft, Layers,
 } from 'lucide-react';
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 /** Reusable items selection accordion for an event section */
 function ItemsSelector({ selectedItems, onToggle, onRemove, onAddCustom, categories, label }) {
@@ -109,6 +121,10 @@ function ItemsSelector({ selectedItems, onToggle, onRemove, onAddCustom, categor
   );
 }
 
+// ============================================================
+// EditDraft — MAIN COMPONENT
+// ============================================================
+
 /** Form page for editing an existing event draft */
 export default function EditDraft() {
   const { eventId } = useParams();
@@ -116,6 +132,10 @@ export default function EditDraft() {
   const navigate = useNavigate();
 
   const event = events.find(e => e.id === eventId);
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
 
   // Form state
   const [form, setForm] = useState({
@@ -132,6 +152,14 @@ export default function EditDraft() {
   const [subEvents, setSubEvents] = useState([]);
 
   const [errors, setErrors] = useState({});
+
+  // `saving` disables the submit button while the Firestore write is in
+  // flight, preventing duplicate/overlapping updates from double-clicks.
+  const [saving, setSaving] = useState(false);
+
+  // ------------------------------------------------------------
+  // DATA LOADING / EFFECTS
+  // ------------------------------------------------------------
 
   // Populate form with existing event data when loaded
   useEffect(() => {
@@ -187,6 +215,10 @@ export default function EditDraft() {
     );
   }
 
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — FORM FIELDS
+  // ------------------------------------------------------------
+
   /** Shorthand helper to update a single form field */
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
@@ -210,6 +242,10 @@ export default function EditDraft() {
   const addCustomMainItem = (item) => {
     setMainEvent(p => ({ ...p, items: [...p.items, item] }));
   };
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — SUB-EVENTS
+  // ------------------------------------------------------------
 
   /** Add a new sub-event */
   const addSubEvent = () => {
@@ -244,6 +280,10 @@ export default function EditDraft() {
     setSubEvents(p => p.map(s => s.id === subId ? { ...s, items: [...s.items, item] } : s));
   };
 
+  // ------------------------------------------------------------
+  // VALIDATION
+  // ------------------------------------------------------------
+
   /** Validates required fields and returns true if form is valid */
   const validate = () => {
     const errs = {};
@@ -255,9 +295,19 @@ export default function EditDraft() {
     return Object.keys(errs).length === 0;
   };
 
-  /** Validates and updates the event, then navigates back */
-  const handleSubmit = () => {
+  // ------------------------------------------------------------
+  // SUBMIT
+  // ------------------------------------------------------------
+
+  /**
+   * Validates and updates the event, then navigates back — but ONLY after
+   * Firestore confirms the write succeeded. Bug fix: previously this fired
+   * updateEvent() without awaiting it, showed a fake "saved" toast, and
+   * navigated away immediately, so real save failures were silently lost.
+   */
+  const handleSubmit = async () => {
     if (!validate()) return;
+    if (saving) return; // guard against double-submit
 
     // Migrate itemPrices to new eventId::itemName key format
     const oldPrices = event.itemPrices || {};
@@ -285,40 +335,55 @@ export default function EditDraft() {
       });
     });
 
-    updateEvent(eventId, {
-      clientName: form.clientName.trim(),
-      clientPhone: form.clientPhone.trim(),
-      clientWhatsapp: form.clientWhatsapp.trim(),
-      clientAddress: form.clientAddress.trim(),
-      eventType: form.eventType,
-      budget: form.budget ? Number(form.budget) : null,
-      notes: form.notes.trim(),
-      mainEvent: {
-        name: mainEvent.name.trim() || form.eventType,
-        date: mainEvent.date,
-        time: mainEvent.time,
-        location: mainEvent.location.trim(),
-        items: mainEvent.items,
-      },
-      subEvents: subEvents.map(s => ({
-        id: s.id,
-        name: s.name.trim() || 'Sub Event',
-        date: s.date,
-        time: s.time,
-        location: s.location.trim(),
-        items: s.items,
-      })),
-      itemPrices: newPrices,
-    });
-    showToast('Changes saved');
-    // Navigate back to the correct page based on event status
-    const status = event.status;
-    if (status === 'confirmed' || status === 'completed') {
-      navigate('/confirmed', { replace: true });
-    } else {
-      navigate('/drafts', { replace: true });
+    setSaving(true);
+    try {
+      const result = await updateEvent(eventId, {
+        clientName: form.clientName.trim(),
+        clientPhone: form.clientPhone.trim(),
+        clientWhatsapp: form.clientWhatsapp.trim(),
+        clientAddress: form.clientAddress.trim(),
+        eventType: form.eventType,
+        budget: form.budget ? Number(form.budget) : null,
+        notes: form.notes.trim(),
+        mainEvent: {
+          name: mainEvent.name.trim() || form.eventType,
+          date: mainEvent.date,
+          time: mainEvent.time,
+          location: mainEvent.location.trim(),
+          items: mainEvent.items,
+        },
+        subEvents: subEvents.map(s => ({
+          id: s.id,
+          name: s.name.trim() || 'Sub Event',
+          date: s.date,
+          time: s.time,
+          location: s.location.trim(),
+          items: s.items,
+        })),
+        itemPrices: newPrices,
+      });
+
+      if (result.success) {
+        showToast('Changes saved');
+        // Navigate back to the correct page based on event status
+        const status = event.status;
+        if (status === 'confirmed' || status === 'completed') {
+          navigate('/confirmed', { replace: true });
+        } else {
+          navigate('/drafts', { replace: true });
+        }
+      } else {
+        // Real failure — surfaced to the user, form stays intact so nothing is lost.
+        showToast(result.error || 'Failed to save changes', 'error');
+      }
+    } finally {
+      setSaving(false);
     }
   };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="space-y-4 pb-8">
@@ -432,8 +497,8 @@ export default function EditDraft() {
       </Card>
 
       {/* Submit */}
-      <Button icon={Save} fullWidth size="lg" onClick={handleSubmit}>
-        Update Draft
+      <Button icon={Save} fullWidth size="lg" onClick={handleSubmit} disabled={saving}>
+        {saving ? 'Saving...' : 'Update Draft'}
       </Button>
     </div>
   );

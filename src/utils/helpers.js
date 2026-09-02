@@ -5,6 +5,10 @@
  * calculations, link generation, and ID creation.
  */
 
+// ============================================================
+// FORMATTING
+// ============================================================
+
 /**
  * Formats a number as Indian Rupee currency.
  * @param {number} amt - Amount to format
@@ -49,6 +53,10 @@ export const daysUntil = (d) => {
   return Math.ceil((ev - now) / 86400000);
 };
 
+// ============================================================
+// CALCULATIONS
+// ============================================================
+
 /**
  * Calculates GST breakdown (CGST/SGST or IGST for inter-state).
  * @param {number} subtotal - Base amount before tax
@@ -72,6 +80,10 @@ export const roundOff = (amt) => {
   const r = Math.round(amt);
   return { rounded: r, diff: +(r - amt).toFixed(2) };
 };
+
+// ============================================================
+// ID & LINK GENERATION
+// ============================================================
 
 /**
  * Generates a unique ID using timestamp + random string.
@@ -111,6 +123,10 @@ export const genInvoiceNo = (prefix = 'BB', existingCount = 0) => {
   const fy2 = (parseInt(fy1)+1).toString();
   return `${prefix}-B2C${fy1}${fy2}-${String(existingCount+1).padStart(3,'0')}`;
 };
+
+// ============================================================
+// EVENT DATE HELPERS
+// ============================================================
 
 /**
  * Gets all dates from an event (main + sub-events) with labels.

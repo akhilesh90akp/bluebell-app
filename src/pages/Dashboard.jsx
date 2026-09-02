@@ -1,10 +1,16 @@
 /**
- * Dashboard - Home page with overview statistics
+ * Dashboard — Home page with overview statistics
  *
  * Displays key metrics (drafts, confirmed, completed, revenue),
  * quick action buttons, and a list of upcoming confirmed events
  * sorted by proximity to their event date.
+ *
+ * Read-only vs. Firestore: only reads `events` from AppContext.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -17,10 +23,18 @@ import {
   Plus, List, Settings, Phone, CalendarDays, MapPin, BarChart3,
 } from 'lucide-react';
 
+// ============================================================
+// Dashboard — MAIN COMPONENT
+// ============================================================
+
 /** Main dashboard view with stats, quick actions, and upcoming events */
 export default function Dashboard() {
   const { events } = useApp();
   const navigate = useNavigate();
+
+  // ------------------------------------------------------------
+  // DERIVED / CALCULATED VALUES
+  // ------------------------------------------------------------
 
   // Categorize events by status
   const drafts = events.filter(e => e.status === 'draft');
@@ -38,6 +52,10 @@ export default function Dashboard() {
     { label: 'Completed', value: completed.length, icon: PartyPopper, color: 'text-blue-400' },
     { label: 'Revenue', value: formatCurrency(revenue), icon: IndianRupee, color: 'text-bb-gold' },
   ];
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="space-y-6">

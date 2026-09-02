@@ -1,6 +1,10 @@
 /**
- * App - Root component with routing and auth gating
+ * App — Root component with routing and auth gating
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -16,6 +20,10 @@ import BillGenerator from './pages/BillGenerator';
 import QuotationGenerator from './pages/QuotationGenerator';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+
+// ============================================================
+// AppRoutes — auth gate + route table
+// ============================================================
 
 function AppRoutes() {
   const { user, authLoading, toast } = useApp();
@@ -57,6 +65,10 @@ function AppRoutes() {
     </BrowserRouter>
   );
 }
+
+// ============================================================
+// App — ROOT EXPORT
+// ============================================================
 
 export default function App() {
   return (

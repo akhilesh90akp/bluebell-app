@@ -1,8 +1,14 @@
 /**
- * AppContext - Global state with Firebase Firestore sync
- * 
- * All data is stored in Firestore under the user's UID.
- * Events, settings, and categories sync across all devices.
+ * AppContext — Global state with Firebase Firestore sync
+ *
+ * All data is stored in Firestore under the user's UID, at:
+ *   users/{uid}/events/{eventId}     - one doc per event/draft
+ *   users/{uid}/config/settings      - invoice settings singleton
+ *   users/{uid}/config/categories    - item categories singleton
+ *
+ * Every write operation below returns a { success, error? } result instead
+ * of firing-and-forgetting — callers (pages) MUST check this result before
+ * navigating away or telling the user it worked. See CODE_STRUCTURE.md §3.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -11,9 +17,16 @@ import { auth, db } from '../firebase';
 import { DEFAULT_SETTINGS, DEFAULT_CATEGORIES } from '../constants/data';
 import { genId } from '../utils/helpers';
 
+// ============================================================
+// CONTEXT
+// ============================================================
+
 const Ctx = createContext();
 
 export function AppProvider({ children }) {
+  // ============================================================
+  // STATE
+  // ============================================================
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [events, setEvents] = useState([]);
@@ -34,6 +47,10 @@ export function AppProvider({ children }) {
     }, 3000);
   }, []);
 
+  // ============================================================
+  // AUTH STATE
+  // ============================================================
+
   // Listen for auth state changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -42,6 +59,14 @@ export function AppProvider({ children }) {
     });
     return unsub;
   }, []);
+
+  const logout = async () => {
+    await signOut(auth);
+  };
+
+  // ============================================================
+  // DATA LOADING (runs whenever the logged-in user changes)
+  // ============================================================
 
   // Load data from Firestore when user logs in
   useEffect(() => {
@@ -88,93 +113,144 @@ export function AppProvider({ children }) {
     return () => unsubEvents();
   }, [user]);
 
-  // === Event Operations ===
+  // ============================================================
+  // EVENT OPERATIONS (CRUD)
+  //
+  // Every function here returns { success, error? } (and `id`/`event` on
+  // success where relevant) instead of failing silently. Pages that call
+  // these MUST await the result and branch on `success` before showing a
+  // toast or navigating — never assume the write worked. See bug notes in
+  // CODE_STRUCTURE.md §3.
+  // ============================================================
 
+  /** Creates a new event/draft in Firestore. Returns { success, id, event } or { success: false, error }. */
   const addEvent = async (data) => {
-    if (!user) { console.error('No user - cannot save'); return null; }
+    if (!user) {
+      const error = 'You are signed out — please log in again before saving.';
+      console.error('addEvent: no authenticated user');
+      showToast(error, 'error');
+      return { success: false, error };
+    }
     const id = genId();
     const ev = { ...data, status: 'draft', createdAt: new Date().toISOString() };
     try {
       await setDoc(doc(db, 'users', user.uid, 'events', id), ev);
       console.log('Event saved to Firestore:', id);
-      showToast('Draft saved successfully');
+      return { success: true, id, event: { id, ...ev } };
     } catch (err) {
-      console.error('Error adding event:', err);
-      showToast('Failed to save: ' + err.message, 'error');
+      // Common causes: Firestore security rules rejecting the write
+      // (err.code === 'permission-denied'), or no network connection.
+      console.error('Error adding event:', err.code, err.message);
+      const friendly = err.code === 'permission-denied'
+        ? 'Save blocked by Firestore security rules — check your rules allow writes to users/{uid}/events.'
+        : err.message;
+      return { success: false, error: friendly };
     }
-    return { id, ...ev };
   };
 
+  /** Updates an existing event by id. Returns { success } or { success: false, error }. */
   const updateEvent = async (id, data) => {
+    if (!user) {
+      const error = 'You are signed out — please log in again before saving.';
+      console.error('updateEvent: no authenticated user');
+      return { success: false, error };
+    }
     try {
       const evRef = doc(db, 'users', user.uid, 'events', id);
       await setDoc(evRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+      return { success: true };
     } catch (err) {
-      console.error('Error updating event:', err);
+      console.error('Error updating event:', err.code, err.message);
+      const friendly = err.code === 'permission-denied'
+        ? 'Save blocked by Firestore security rules — check your rules allow writes to users/{uid}/events.'
+        : err.message;
+      return { success: false, error: friendly };
     }
   };
 
+  /** Deletes an event by id. Returns { success } or { success: false, error }. */
   const deleteEvent = async (id) => {
+    if (!user) return { success: false, error: 'You are signed out.' };
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'events', id));
+      return { success: true };
     } catch (err) {
-      console.error('Error deleting event:', err);
+      console.error('Error deleting event:', err.code, err.message);
+      showToast('Failed to delete: ' + err.message, 'error');
+      return { success: false, error: err.message };
     }
   };
 
-  // === Settings Operations ===
+  // ============================================================
+  // SETTINGS OPERATIONS
+  // ============================================================
 
+  /** Merges and persists invoice settings. Returns { success } or { success: false, error }. */
   const updateSettings = async (data) => {
+    if (!user) return { success: false, error: 'You are signed out.' };
     const newSettings = { ...settings, ...data };
-    setSettings(newSettings);
+    setSettings(newSettings); // optimistic local update
     try {
       await setDoc(doc(db, 'users', user.uid, 'config', 'settings'), newSettings);
+      return { success: true };
     } catch (err) {
-      console.error('Error saving settings:', err);
+      console.error('Error saving settings:', err.code, err.message);
+      showToast('Failed to save settings: ' + err.message, 'error');
+      return { success: false, error: err.message };
     }
   };
 
-  // === Category Operations ===
+  // ============================================================
+  // CATEGORY OPERATIONS
+  // ============================================================
 
+  /** Persists the full categories list. Returns { success } or { success: false, error }. */
   const saveCategories = async (cats) => {
-    setCategories(cats);
+    if (!user) return { success: false, error: 'You are signed out.' };
+    setCategories(cats); // optimistic local update
     try {
       await setDoc(doc(db, 'users', user.uid, 'config', 'categories'), { list: cats });
+      return { success: true };
     } catch (err) {
-      console.error('Error saving categories:', err);
+      console.error('Error saving categories:', err.code, err.message);
+      showToast('Failed to save categories: ' + err.message, 'error');
+      return { success: false, error: err.message };
     }
   };
 
+  /** Adds a new category. Returns the saveCategories() result. */
   const addCategory = (cat) => {
     const updated = [...categories, { id: genId(), ...cat }];
-    saveCategories(updated);
+    return saveCategories(updated);
   };
 
+  /** Updates fields on an existing category. Returns the saveCategories() result. */
   const updateCategory = (id, data) => {
     const updated = categories.map(c => c.id === id ? { ...c, ...data } : c);
-    saveCategories(updated);
+    return saveCategories(updated);
   };
 
+  /** Removes a category entirely. Returns the saveCategories() result. */
   const deleteCategory = (id) => {
     const updated = categories.filter(c => c.id !== id);
-    saveCategories(updated);
+    return saveCategories(updated);
   };
 
+  /** Adds one item to a category's item list. Returns the saveCategories() result. */
   const addItemToCat = (catId, item) => {
     const updated = categories.map(c => c.id === catId ? { ...c, items: [...c.items, item] } : c);
-    saveCategories(updated);
+    return saveCategories(updated);
   };
 
+  /** Removes one item from a category's item list. Returns the saveCategories() result. */
   const removeItemFromCat = (catId, item) => {
     const updated = categories.map(c => c.id === catId ? { ...c, items: c.items.filter(i => i !== item) } : c);
-    saveCategories(updated);
+    return saveCategories(updated);
   };
 
-  // === Auth Operations ===
-
-  const logout = async () => {
-    await signOut(auth);
-  };
+  // ============================================================
+  // CONTEXT VALUE
+  // ============================================================
 
   return (
     <Ctx.Provider value={{

@@ -2,6 +2,10 @@
  * ErrorBoundary - Catches render errors and shows a recovery UI
  * instead of a blank white screen.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 export default class ErrorBoundary extends React.Component {

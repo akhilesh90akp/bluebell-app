@@ -4,6 +4,10 @@
  * A versatile input component that supports text, date, number, and textarea types.
  * Includes optional label, icon, error state, and required indicator.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Renders a styled form input or textarea with label and validation */

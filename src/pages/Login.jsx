@@ -1,14 +1,29 @@
 /**
- * Login Page - Google sign-in
+ * Login Page — Google sign-in
  * Uses signInWithPopup for all platforms
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
 
+// ============================================================
+// Login — MAIN COMPONENT
+// ============================================================
+
 export default function Login() {
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS
+  // ------------------------------------------------------------
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -30,6 +45,10 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="min-h-[100dvh] bg-bb-sidebar flex items-center justify-center p-4">

@@ -1,10 +1,17 @@
 /**
- * DraftsList - Draft events management page
+ * DraftsList — Draft events management page
  *
  * Displays all draft events in an expandable card list with search filtering.
  * Each card shows client info, event details, items, and action buttons.
  * Backward compatible with old event format (no mainEvent/subEvents).
+ *
+ * Confirm/Delete actions await the Firestore result before showing a
+ * success toast — see CODE_STRUCTURE.md §3-4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -19,6 +26,10 @@ import {
   Trash2, CalendarDays, MapPin, PackageOpen, ChevronDown, ChevronUp,
   Home, Navigation, IndianRupee,
 } from 'lucide-react';
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 /**
  * Helper: get all items from an event (both old and new format)
@@ -52,13 +63,25 @@ function getEventLocation(ev) {
   return ev.eventLocation || '';
 }
 
+// ============================================================
+// DraftsList — MAIN COMPONENT
+// ============================================================
+
 /** Lists all draft events with search, expand/collapse, and actions */
 export default function DraftsList() {
   const { events, deleteEvent, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+
+  // ------------------------------------------------------------
+  // DERIVED DATA
+  // ------------------------------------------------------------
 
   // Filter drafts by search query (client name, type, or location)
   const drafts = sortByActiveDate(
@@ -75,19 +98,30 @@ export default function DraftsList() {
       })
   );
 
-  /** Promotes a draft to confirmed status */
-  const confirmEvent = (id) => {
-    updateEvent(id, { status: 'confirmed' });
-    showToast('Event confirmed');
+  // ------------------------------------------------------------
+  // EVENT HANDLERS
+  // ------------------------------------------------------------
+
+  /** Promotes a draft to confirmed status — only toasts success if the write actually succeeded */
+  const confirmEvent = async (id) => {
+    const result = await updateEvent(id, { status: 'confirmed' });
+    if (result.success) {
+      showToast('Event confirmed');
+    } else {
+      showToast(result.error || 'Failed to confirm event', 'error');
+    }
   };
 
-  /** Executes the delete after modal confirmation */
-  const handleDelete = () => {
-    if (deleteId) {
-      deleteEvent(deleteId);
-      setDeleteId(null);
+  /** Executes the delete after modal confirmation — only toasts success if the write actually succeeded */
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const id = deleteId;
+    setDeleteId(null); // close modal immediately regardless of outcome
+    const result = await deleteEvent(id);
+    if (result.success) {
       showToast('Event deleted');
     }
+    // On failure, deleteEvent() already shows its own error toast.
   };
 
   /** Toggles the expanded/collapsed state of a draft card */

@@ -5,6 +5,10 @@
  * mobile bottom navigation bar, and a floating action button (FAB).
  * All page content is rendered via React Router's Outlet.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FilePlus, FileText, CheckCircle2, Settings, Plus, BarChart3, LogOut } from 'lucide-react';

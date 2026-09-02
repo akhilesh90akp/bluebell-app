@@ -4,6 +4,10 @@
  * A simple white card with border and optional hover effect.
  * Used throughout the app as the primary content container.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Renders a bordered card container with optional hover and click behavior */

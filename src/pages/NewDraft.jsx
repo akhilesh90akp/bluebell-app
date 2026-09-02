@@ -1,10 +1,19 @@
 /**
- * NewDraft - Event creation form with sub-events support
+ * NewDraft — Event creation form with sub-events support
  *
  * Multi-section form for creating a new event draft. Includes client info,
  * main event details with items, optional sub-events each with their own
  * items, and notes. Validates required fields before saving.
+ *
+ * Save flow: handleSubmit awaits AppContext.addEvent() and only shows a
+ * success toast / navigates away if the Firestore write actually succeeded.
+ * On failure, the real error is shown and the user stays on the page with
+ * their data intact. See CODE_STRUCTURE.md §4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -19,6 +28,10 @@ import {
   User, Phone, MessageSquare, MapPin, Calendar, Clock,
   IndianRupee, ChevronDown, ChevronUp, X, Plus, Save, StickyNote, Layers,
 } from 'lucide-react';
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 /** Reusable items selection accordion for an event section */
 function ItemsSelector({ selectedItems, onToggle, onRemove, onAddCustom, categories, label }) {
@@ -109,10 +122,18 @@ function ItemsSelector({ selectedItems, onToggle, onRemove, onAddCustom, categor
   );
 }
 
+// ============================================================
+// NewDraft — MAIN COMPONENT
+// ============================================================
+
 /** Form page for creating a new event draft */
 export default function NewDraft() {
   const { categories, addEvent, showToast } = useApp();
   const navigate = useNavigate();
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
 
   // Form state
   const [form, setForm] = useState({
@@ -129,6 +150,14 @@ export default function NewDraft() {
   const [subEvents, setSubEvents] = useState([]);
 
   const [errors, setErrors] = useState({});
+
+  // `saving` disables the submit button and shows a spinner state while the
+  // Firestore write is in flight, preventing duplicate drafts from double-clicks.
+  const [saving, setSaving] = useState(false);
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — FORM FIELDS
+  // ------------------------------------------------------------
 
   /** Shorthand helper to update a single form field */
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
@@ -153,6 +182,10 @@ export default function NewDraft() {
   const addCustomMainItem = (item) => {
     setMainEvent(p => ({ ...p, items: [...p.items, item] }));
   };
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — SUB-EVENTS
+  // ------------------------------------------------------------
 
   /** Add a new sub-event */
   const addSubEvent = () => {
@@ -187,6 +220,10 @@ export default function NewDraft() {
     setSubEvents(p => p.map(s => s.id === subId ? { ...s, items: [...s.items, item] } : s));
   };
 
+  // ------------------------------------------------------------
+  // VALIDATION
+  // ------------------------------------------------------------
+
   /** Validates required fields and returns true if form is valid */
   const validate = () => {
     const errs = {};
@@ -198,37 +235,64 @@ export default function NewDraft() {
     return Object.keys(errs).length === 0;
   };
 
-  /** Validates and saves the event as a draft, then navigates to drafts list */
-  const handleSubmit = () => {
+  // ------------------------------------------------------------
+  // SUBMIT
+  // ------------------------------------------------------------
+
+  /**
+   * Validates and saves the event as a draft, then navigates to the drafts
+   * list — but ONLY after Firestore confirms the write succeeded. Bug fix:
+   * previously this fired addEvent() without awaiting it, showed a fake
+   * "saved" toast, and navigated away immediately — so real save failures
+   * (e.g. permission-denied from Firestore rules) were silently swallowed.
+   */
+  const handleSubmit = async () => {
     if (!validate()) return;
-    addEvent({
-      clientName: form.clientName.trim(),
-      clientPhone: form.clientPhone.trim(),
-      clientWhatsapp: form.clientWhatsapp.trim(),
-      clientAddress: form.clientAddress.trim(),
-      eventType: form.eventType,
-      budget: form.budget ? Number(form.budget) : null,
-      notes: form.notes.trim(),
-      mainEvent: {
-        name: mainEvent.name.trim() || form.eventType,
-        date: mainEvent.date,
-        time: mainEvent.time,
-        location: mainEvent.location.trim(),
-        items: mainEvent.items,
-      },
-      subEvents: subEvents.map(s => ({
-        id: s.id,
-        name: s.name.trim() || 'Sub Event',
-        date: s.date,
-        time: s.time,
-        location: s.location.trim(),
-        items: s.items,
-      })),
-      itemPrices: {},
-    });
-    showToast('Draft saved successfully');
-    navigate('/drafts', { replace: true });
+    if (saving) return; // guard against double-submit
+
+    setSaving(true);
+    try {
+      const result = await addEvent({
+        clientName: form.clientName.trim(),
+        clientPhone: form.clientPhone.trim(),
+        clientWhatsapp: form.clientWhatsapp.trim(),
+        clientAddress: form.clientAddress.trim(),
+        eventType: form.eventType,
+        budget: form.budget ? Number(form.budget) : null,
+        notes: form.notes.trim(),
+        mainEvent: {
+          name: mainEvent.name.trim() || form.eventType,
+          date: mainEvent.date,
+          time: mainEvent.time,
+          location: mainEvent.location.trim(),
+          items: mainEvent.items,
+        },
+        subEvents: subEvents.map(s => ({
+          id: s.id,
+          name: s.name.trim() || 'Sub Event',
+          date: s.date,
+          time: s.time,
+          location: s.location.trim(),
+          items: s.items,
+        })),
+        itemPrices: {},
+      });
+
+      if (result.success) {
+        showToast('Draft saved successfully');
+        navigate('/drafts', { replace: true });
+      } else {
+        // Real failure — surfaced to the user, form stays intact so nothing is lost.
+        showToast(result.error || 'Failed to save draft', 'error');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="space-y-4 pb-8">
@@ -337,8 +401,8 @@ export default function NewDraft() {
       </Card>
 
       {/* Submit */}
-      <Button icon={Save} fullWidth size="lg" onClick={handleSubmit}>
-        Save as Draft
+      <Button icon={Save} fullWidth size="lg" onClick={handleSubmit} disabled={saving}>
+        {saving ? 'Saving...' : 'Save as Draft'}
       </Button>
     </div>
   );

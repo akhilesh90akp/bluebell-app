@@ -5,6 +5,10 @@
  * Free to use with no API key required. Results are filtered to India.
  * Can be swapped with Google Places API later if needed.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Loader2, X } from 'lucide-react';
 

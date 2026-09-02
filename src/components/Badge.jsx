@@ -4,6 +4,10 @@
  * Displays a small colored badge/pill indicating status.
  * Uses readable color combinations optimized for light theme backgrounds.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React from 'react';
 
 /** Color mappings for each status variant */

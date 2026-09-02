@@ -1,10 +1,17 @@
 /**
- * Settings - Application configuration page
+ * Settings — Application configuration page
  *
  * Multi-tab settings interface for managing company details, bank information,
  * invoice preferences, service categories, and team (placeholder).
- * All changes persist to localStorage via the AppContext.
+ * All changes persist to Firestore via AppContext (not localStorage).
+ *
+ * Save actions await the Firestore result before confirming success —
+ * see CODE_STRUCTURE.md §3-4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
@@ -13,9 +20,17 @@ import Input from '../components/Input';
 import Modal from '../components/Modal';
 import { Save, Plus, Trash2, Edit2, X, Building2, Landmark, FileText, Layers, Users } from 'lucide-react';
 
+// ============================================================
+// Settings — MAIN COMPONENT
+// ============================================================
+
 /** Multi-tab settings page for company, bank, invoice, and service configuration */
 export default function Settings() {
-  const { settings, categories, updateSettings, addCategory, updateCategory, deleteCategory, addItemToCat, removeItemFromCat, logout, user } = useApp();
+  const { settings, categories, updateSettings, addCategory, updateCategory, deleteCategory, addItemToCat, removeItemFromCat, logout, user, showToast } = useApp();
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
   const [tab, setTab] = useState('company');
   const [form, setForm] = useState({ ...settings, bankDetails: { ...settings.bankDetails } });
   const [catModal, setCatModal] = useState(null); // category id for item management modal
@@ -23,6 +38,11 @@ export default function Settings() {
   const [newCatIcon, setNewCatIcon] = useState('📦');
   const [newItemInput, setNewItemInput] = useState('');
   const [newTerm, setNewTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — FORM FIELDS
+  // ------------------------------------------------------------
 
   /** Updates a top-level form field */
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
@@ -30,10 +50,24 @@ export default function Settings() {
   /** Updates a nested bank details field */
   const setBank = (key, val) => setForm(p => ({ ...p, bankDetails: { ...p.bankDetails, [key]: val } }));
 
-  /** Saves the current form state to global settings */
-  const handleSave = () => {
-    updateSettings(form);
-    alert('Settings saved!');
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — SAVE / CATEGORIES
+  // ------------------------------------------------------------
+
+  /** Saves the current form state to global settings. Awaits the write; uses the app's toast, not a blocking alert(). */
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const result = await updateSettings(form);
+      if (result.success) {
+        showToast('Settings saved!');
+      } else {
+        showToast(result.error || 'Failed to save settings', 'error');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   /** Creates a new service category */
@@ -64,6 +98,10 @@ export default function Settings() {
     const terms = (form.termsAndConditions || []).filter((_, i) => i !== idx);
     setForm(p => ({ ...p, termsAndConditions: terms }));
   };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   // Tab configuration
   const tabs = [
@@ -291,8 +329,8 @@ export default function Settings() {
 
       {/* Save Button - shown for editable tabs only */}
       {tab !== 'services' && tab !== 'team' && (
-        <Button icon={Save} fullWidth size="lg" onClick={handleSave}>
-          Save Settings
+        <Button icon={Save} fullWidth size="lg" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Settings'}
         </Button>
       )}
     </div>

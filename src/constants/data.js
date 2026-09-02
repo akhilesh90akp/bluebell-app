@@ -5,12 +5,20 @@
  * event types, service categories, default company settings, and SAC codes.
  */
 
+// ============================================================
+// EVENT TYPES
+// ============================================================
+
 /** Available event types for classification */
 export const EVENT_TYPES = [
   'Wedding', 'Reception', 'Engagement', 'Birthday Party', 'Anniversary',
   'Corporate Event', 'Conference', 'House Warming', 'Baby Shower',
   'Religious Event', 'Government Event', 'College Event', 'Other',
 ];
+
+// ============================================================
+// SERVICE CATEGORIES
+// ============================================================
 
 /**
  * Default service categories with predefined items.
@@ -28,6 +36,10 @@ export const DEFAULT_CATEGORIES = [
   { id: 'transport', name: 'Transportation', icon: '🚗', items: ['Bridal Car','Guest Shuttle / Bus','Palki / Horse'] },
   { id: 'misc', name: 'Miscellaneous', icon: '📋', items: ['Valet Parking','Security Personnel','First Aid Staff','Event Coordinator','Makeup Artist','Mehndi Artist','Priest / Pandit'] },
 ];
+
+// ============================================================
+// COMPANY / INVOICE DEFAULTS
+// ============================================================
 
 /** Default company/business settings used on first launch */
 export const DEFAULT_SETTINGS = {
@@ -56,6 +68,10 @@ export const DEFAULT_SETTINGS = {
   ],
   thankYouMessage: 'Thank You For Your Business!',
 };
+
+// ============================================================
+// TAX CODES
+// ============================================================
 
 /** SAC (Services Accounting Code) for event management services */
 export const DEFAULT_SAC_CODE = '998596';

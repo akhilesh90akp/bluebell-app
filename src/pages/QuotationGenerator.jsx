@@ -1,10 +1,17 @@
 /**
- * QuotationGenerator - Professional quotation document builder
+ * QuotationGenerator — Professional quotation document builder
  *
  * Generates a print-ready quotation for an event. Groups items by main event
  * and sub-events. Allows adding/removing items, setting per-item quantities
  * and rates, and enabling GST. Supports printing and WhatsApp sharing.
+ *
+ * Save flow: handleSave awaits AppContext.updateEvent() and only confirms
+ * success once Firestore actually returns it. See CODE_STRUCTURE.md §4.
  */
+
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -16,6 +23,10 @@ import Toggle from '../components/Toggle';
 import Modal from '../components/Modal';
 import { formatCurrency, formatDateReadable, calcGST, waLink } from '../utils/helpers';
 import { ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package, ChevronDown, ChevronRight } from 'lucide-react';
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 /**
  * Helper: get all items from an event (both old and new format).
@@ -71,12 +82,20 @@ function getEventItemsData(event) {
   return { allItems: items, eventGroups };
 }
 
+// ============================================================
+// QuotationGenerator — MAIN COMPONENT
+// ============================================================
+
 /** Builds and previews a printable quotation document for an event */
 export default function QuotationGenerator() {
   const { eventId } = useParams();
   const { events, settings, categories, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
   const event = events.find(e => e.id === eventId);
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
 
   // Initialize item prices from existing event data using eventId::itemName keys
   const [itemPrices, setItemPrices] = useState(() => {
@@ -130,6 +149,13 @@ export default function QuotationGenerator() {
   // Ref for printable section (must be before early return)
   const pdfRef = useRef(null);
 
+  // `saving` disables the Save button while the Firestore write is in flight.
+  const [saving, setSaving] = useState(false);
+
+  // ------------------------------------------------------------
+  // DATA LOADING / EFFECTS
+  // ------------------------------------------------------------
+
   // Sync localItems when event loads (context may load async from Firestore)
   useEffect(() => {
     if (event && localItems.length === 0) {
@@ -160,6 +186,10 @@ export default function QuotationGenerator() {
       setItemPrices(p);
     }
   }, [event]);
+
+  // ------------------------------------------------------------
+  // DERIVED / CALCULATED VALUES
+  // ------------------------------------------------------------
 
   // Calculate subtotal from all items
   const subtotal = useMemo(() =>
@@ -227,6 +257,10 @@ export default function QuotationGenerator() {
     );
   }
 
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — ITEMS
+  // ------------------------------------------------------------
+
   /** Adds a custom free-text item to the quotation (added to main event by default) */
   const handleAddItem = () => {
     const name = newItemName.trim();
@@ -262,34 +296,48 @@ export default function QuotationGenerator() {
     setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
   };
 
-  /** Persists the current items and prices back to the event in context */
-  const handleSave = () => {
-    // Save itemPrices with eventId::itemName keys
-    const updateData = { itemPrices: itemPrices, totalAmount: subtotal };
+  /** Persists the current items and prices back to the event in context. Awaits the write; toasts real success/failure. */
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      // Save itemPrices with eventId::itemName keys
+      const updateData = { itemPrices: itemPrices, totalAmount: subtotal };
 
-    if (event.mainEvent) {
-      // Reconstruct mainEvent items from localItems keys
-      const mainItems = localItems
-        .filter(k => k.startsWith('main::'))
-        .map(k => k.replace('main::', ''));
-      updateData.mainEvent = { ...event.mainEvent, items: mainItems };
+      if (event.mainEvent) {
+        // Reconstruct mainEvent items from localItems keys
+        const mainItems = localItems
+          .filter(k => k.startsWith('main::'))
+          .map(k => k.replace('main::', ''));
+        updateData.mainEvent = { ...event.mainEvent, items: mainItems };
 
-      // Reconstruct sub-event items from localItems keys
-      const subEvents = (event.subEvents || []).map(s => {
-        const subItems = localItems
-          .filter(k => k.startsWith(`${s.id}::`))
-          .map(k => k.replace(`${s.id}::`, ''));
-        return { ...s, items: subItems };
-      });
-      updateData.subEvents = subEvents;
-    } else {
-      const items = localItems.map(k => k.replace('main::', ''));
-      updateData.items = items;
+        // Reconstruct sub-event items from localItems keys
+        const subEvents = (event.subEvents || []).map(s => {
+          const subItems = localItems
+            .filter(k => k.startsWith(`${s.id}::`))
+            .map(k => k.replace(`${s.id}::`, ''));
+          return { ...s, items: subItems };
+        });
+        updateData.subEvents = subEvents;
+      } else {
+        const items = localItems.map(k => k.replace('main::', ''));
+        updateData.items = items;
+      }
+
+      const result = await updateEvent(eventId, updateData);
+      if (result.success) {
+        showToast('Quotation saved');
+      } else {
+        showToast(result.error || 'Failed to save quotation', 'error');
+      }
+    } finally {
+      setSaving(false);
     }
-
-    updateEvent(eventId, updateData);
-    showToast('Quotation saved');
   };
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — PRINT / SHARE
+  // ------------------------------------------------------------
 
   /** Triggers the browser print dialog with descriptive PDF filename */
   const handlePrint = () => {
@@ -334,6 +382,10 @@ export default function QuotationGenerator() {
 
   // Get the main event date for display
   const displayDate = event.mainEvent?.date || event.date || '';
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="space-y-4 pb-8">
@@ -436,7 +488,7 @@ export default function QuotationGenerator() {
 
         {/* Action Buttons */}
         <div data-no-print className="flex gap-2 flex-wrap">
-          <Button icon={Save} onClick={handleSave}>Save Quotation</Button>
+          <Button icon={Save} onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Quotation'}</Button>
           <Button icon={Printer} variant="secondary" onClick={handlePrint}>Print / PDF</Button>
           <Button icon={MessageSquare} variant="success" onClick={handleWhatsApp}>Share via WhatsApp</Button>
           <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
