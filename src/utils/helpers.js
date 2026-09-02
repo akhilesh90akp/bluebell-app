@@ -198,7 +198,11 @@ export const getActiveDate = (ev) => {
 };
 
 /**
- * Sorts events by active date: upcoming soonest first, then past most recent first.
+ * Sorts events by active date, nearest to today first — whichever direction.
+ * An event 2 days away and an event 2 days overdue rank equally near the
+ * top; something 30 days away or 30 days overdue ranks near the bottom.
+ * This surfaces both "coming up soon" and "overdue, needs attention"
+ * events together, which is what matters most day-to-day.
  * @param {Array} events - Array of event objects
  * @returns {Array} Sorted events array
  */
@@ -207,13 +211,6 @@ export const sortByActiveDate = (events) => {
   return [...events].sort((a, b) => {
     const dateA = new Date(getActiveDate(a));
     const dateB = new Date(getActiveDate(b));
-    const diffA = dateA - now;
-    const diffB = dateB - now;
-    // Upcoming events first, sorted soonest on top
-    // Past events after, sorted most recent on top
-    if (diffA >= 0 && diffB >= 0) return diffA - diffB;
-    if (diffA < 0 && diffB < 0) return diffB - diffA;
-    if (diffA >= 0) return -1;
-    return 1;
+    return Math.abs(dateA - now) - Math.abs(dateB - now);
   });
 };

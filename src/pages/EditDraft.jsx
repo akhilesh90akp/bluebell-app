@@ -365,10 +365,13 @@ export default function EditDraft() {
 
       if (result.success) {
         showToast('Changes saved');
-        // Navigate back to the correct page based on event status
+        // Navigate back to the correct page AND tab based on event status —
+        // pass statusFilter via route state so ConfirmedEvents opens on the
+        // same tab (Confirmed vs Completed) the user edited from, instead
+        // of always resetting to its default "Confirmed" tab.
         const status = event.status;
         if (status === 'confirmed' || status === 'completed') {
-          navigate('/confirmed', { replace: true });
+          navigate('/confirmed', { replace: true, state: { statusFilter: status } });
         } else {
           navigate('/drafts', { replace: true });
         }

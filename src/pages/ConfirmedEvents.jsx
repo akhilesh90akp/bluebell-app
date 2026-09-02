@@ -14,7 +14,7 @@
 // IMPORTS
 // ============================================================
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -64,12 +64,16 @@ function getEventDate(ev) {
 export default function ConfirmedEvents() {
   const { events, categories, updateEvent, deleteEvent, showToast } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // ------------------------------------------------------------
   // STATE
   // ------------------------------------------------------------
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('confirmed'); // 'confirmed' | 'completed'
+  // Opens on whichever tab we were sent from (e.g. EditDraft passes
+  // { statusFilter: 'completed' } via navigate() so editing a completed
+  // event and saving returns you to Completed, not the default Confirmed).
+  const [statusFilter, setStatusFilter] = useState(location.state?.statusFilter || 'confirmed'); // 'confirmed' | 'completed'
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
   const [priceModal, setPriceModal] = useState(null); // event id for pricing modal
   const [newItem, setNewItem] = useState('');
@@ -304,16 +308,21 @@ export default function ConfirmedEvents() {
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <Badge variant={ev.status}>{ev.eventType}</Badge>
                       <Badge variant={ev.status}>{ev.status}</Badge>
+                      {ev.status === 'confirmed' && activeDays !== null && activeDays < 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                          Past Date
+                        </span>
+                      )}
                       {ev.totalAmount > 0 && (
                         <span className="font-bold text-emerald-600 text-sm ml-auto">{formatCurrency(ev.totalAmount)}</span>
                       )}
                     </div>
 
-                    {/* Line 3: Dates (with active highlighted), venue */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    {/* Line 3: Dates (with active highlighted) */}
+                    <div className="space-y-1 text-sm">
                       {eventDates.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <CalendarDays size={14} className="text-bb-muted" />
+                          <CalendarDays size={14} className="text-bb-muted flex-shrink-0" />
                           {eventDates.map((d, idx) => {
                             const isActive = d.date === activeDateStr;
                             return (
@@ -332,11 +341,12 @@ export default function ConfirmedEvents() {
                           })}
                         </div>
                       )}
+                      {/* Line 4: Venue — own row so it gets full width to truncate against consistently */}
                       {(ev.mainEvent?.location || ev.eventLocation) && (
-                        <span className="flex items-center gap-1 truncate max-w-[180px] text-bb-muted">
-                          <MapPin size={14} />
-                          {ev.mainEvent?.location || ev.eventLocation}
-                        </span>
+                        <div className="flex items-center gap-1 text-bb-muted min-w-0">
+                          <MapPin size={14} className="flex-shrink-0" />
+                          <span className="truncate">{ev.mainEvent?.location || ev.eventLocation}</span>
+                        </div>
                       )}
                     </div>
                   </div>

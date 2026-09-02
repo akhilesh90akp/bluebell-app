@@ -196,16 +196,21 @@ export default function DraftsList() {
                     {/* Line 2: Chips + budget */}
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <Badge variant="draft">{ev.eventType}</Badge>
+                      {activeDays !== null && activeDays < 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                          Past Date
+                        </span>
+                      )}
                       {ev.budget > 0 && (
                         <span className="text-sm text-bb-muted ml-auto">{formatCurrency(ev.budget)}</span>
                       )}
                     </div>
 
-                    {/* Line 3: Dates (with active highlighted), venue */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    {/* Line 3: Dates (with active highlighted) */}
+                    <div className="space-y-1 text-sm">
                       {eventDates.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <CalendarDays size={14} className="text-bb-muted" />
+                          <CalendarDays size={14} className="text-bb-muted flex-shrink-0" />
                           {eventDates.map((d, idx) => {
                             const isActive = d.date === activeDateStr;
                             return (
@@ -224,11 +229,12 @@ export default function DraftsList() {
                           })}
                         </div>
                       )}
+                      {/* Line 4: Venue — own row so it gets full width to truncate against consistently */}
                       {location && (
-                        <span className="flex items-center gap-1 truncate max-w-[180px] text-bb-muted">
-                          <MapPin size={14} />
-                          {location}
-                        </span>
+                        <div className="flex items-center gap-1 text-bb-muted min-w-0">
+                          <MapPin size={14} className="flex-shrink-0" />
+                          <span className="truncate">{location}</span>
+                        </div>
                       )}
                     </div>
                   </div>
