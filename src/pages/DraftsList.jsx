@@ -198,7 +198,7 @@ export default function DraftsList() {
                       <Badge variant="draft">{ev.eventType}</Badge>
                       {activeDays !== null && activeDays < 0 && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                          Past Date
+                          {Math.abs(activeDays) === 1 ? '1 day ago' : `${Math.abs(activeDays)} days ago`}
                         </span>
                       )}
                       {ev.budget > 0 && (

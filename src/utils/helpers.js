@@ -198,11 +198,11 @@ export const getActiveDate = (ev) => {
 };
 
 /**
- * Sorts events by active date, nearest to today first — whichever direction.
- * An event 2 days away and an event 2 days overdue rank equally near the
- * top; something 30 days away or 30 days overdue ranks near the bottom.
- * This surfaces both "coming up soon" and "overdue, needs attention"
- * events together, which is what matters most day-to-day.
+ * Sorts events by active date: upcoming soonest first, then past most recent first.
+ * Draft/Confirmed tabs: nearest upcoming date rises to the top (e.g. Sep 3
+ * before Sep 4), with overdue events grouped afterward, most recently
+ * overdue first. Completed tab is normally all-past dates, so this same
+ * rule naturally shows "most recently completed" at the top there too.
  * @param {Array} events - Array of event objects
  * @returns {Array} Sorted events array
  */
@@ -211,6 +211,13 @@ export const sortByActiveDate = (events) => {
   return [...events].sort((a, b) => {
     const dateA = new Date(getActiveDate(a));
     const dateB = new Date(getActiveDate(b));
-    return Math.abs(dateA - now) - Math.abs(dateB - now);
+    const diffA = dateA - now;
+    const diffB = dateB - now;
+    // Both upcoming: soonest first
+    if (diffA >= 0 && diffB >= 0) return diffA - diffB;
+    // Both past: most recent first
+    if (diffA < 0 && diffB < 0) return diffB - diffA;
+    // One upcoming, one past: upcoming always ranks above past
+    return diffA >= 0 ? -1 : 1;
   });
 };
