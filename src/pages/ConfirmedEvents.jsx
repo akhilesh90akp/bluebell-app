@@ -25,7 +25,8 @@ import { formatCurrency, formatDateReadable, daysUntil, telLink, waLink, sortByA
 import {
   Search, Phone, MessageSquare, FileText, CheckCircle2,
   CalendarDays, MapPin, PackageOpen, Plus, Receipt, Edit3,
-  ChevronDown, ChevronUp, Home, Navigation, Trash2,
+  ChevronDown, ChevronUp, Home, Navigation, Trash2, MoreVertical,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 // ============================================================
@@ -81,6 +82,7 @@ export default function ConfirmedEvents() {
   const [prices, setPrices] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [deleteId, setDeleteId] = useState(null); // event id for delete confirmation
+  const [moveId, setMoveId] = useState(null); // event id for the "Move to..." status-change modal
 
   // ------------------------------------------------------------
   // DERIVED DATA
@@ -200,6 +202,30 @@ export default function ConfirmedEvents() {
     } else {
       showToast(result.error || 'Failed to update event', 'error');
     }
+  };
+
+  /**
+   * Moves an event to a different status (undo path for accidental
+   * "Mark Done" / "Confirm" clicks) — e.g. Completed -> Confirmed or
+   * Completed -> Draft, or Confirmed -> Draft. Awaits the write and only
+   * toasts success on confirmation.
+   */
+  const moveEventTo = async (id, newStatus) => {
+    const result = await updateEvent(id, { status: newStatus });
+    setMoveId(null);
+    if (result.success) {
+      const label = newStatus === 'draft' ? 'Draft' : newStatus === 'confirmed' ? 'Confirmed' : newStatus;
+      showToast(`Event moved to ${label}`);
+    } else {
+      showToast(result.error || 'Failed to move event', 'error');
+    }
+  };
+
+  /** Returns the valid "move to" destination statuses for an event's current status */
+  const getMoveOptions = (status) => {
+    if (status === 'completed') return ['confirmed', 'draft'];
+    if (status === 'confirmed') return ['draft'];
+    return [];
   };
 
   /** Executes the delete after modal confirmation. Awaits the write; deleteEvent() shows its own error toast on failure. */
@@ -448,6 +474,9 @@ export default function ConfirmedEvents() {
                           <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
                         )}
                         <Button size="sm" variant="outline" icon={Trash2} className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => setDeleteId(ev.id)}>Delete</Button>
+                        {getMoveOptions(ev.status).length > 0 && (
+                          <Button size="sm" variant="ghost" icon={MoreVertical} onClick={() => setMoveId(ev.id)} title="Move to..." />
+                        )}
                       </div>
                     </div>
                   )}
@@ -479,6 +508,12 @@ export default function ConfirmedEvents() {
                       <span className="w-px h-5 bg-bb-border" />
                       {ev.status === 'confirmed' && (
                         <Button size="sm" variant="success" icon={CheckCircle2} onClick={() => markDone(ev.id)}>Mark Done</Button>
+                      )}
+                      {getMoveOptions(ev.status).length > 0 && (
+                        <>
+                          <span className="w-px h-5 bg-bb-border" />
+                          <Button size="sm" variant="ghost" icon={MoreVertical} onClick={() => setMoveId(ev.id)} title="Move to..." />
+                        </>
                       )}
                     </div>
                   )}
@@ -614,6 +649,25 @@ export default function ConfirmedEvents() {
         <div className="flex gap-2 justify-end">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
           <Button variant="danger" onClick={handleDelete}>Delete</Button>
+        </div>
+      </Modal>
+
+      {/* Move-to-status Modal — undo path for accidental Mark Done / Confirm clicks */}
+      <Modal isOpen={!!moveId} onClose={() => setMoveId(null)} title="Move Event" size="sm">
+        <p className="text-bb-muted mb-4">Move this event back to a different stage:</p>
+        <div className="flex flex-col gap-2">
+          {getMoveOptions(events.find(e => e.id === moveId)?.status).map(status => (
+            <Button
+              key={status}
+              variant="secondary"
+              icon={ArrowLeftRight}
+              fullWidth
+              onClick={() => moveEventTo(moveId, status)}
+            >
+              Move to {status === 'draft' ? 'Draft' : 'Confirmed'}
+            </Button>
+          ))}
+          <Button variant="ghost" fullWidth onClick={() => setMoveId(null)}>Cancel</Button>
         </div>
       </Modal>
     </div>
