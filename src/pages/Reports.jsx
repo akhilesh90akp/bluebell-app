@@ -19,7 +19,8 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
 import { formatCurrency, formatDateReadable, getActiveDate } from '../utils/helpers';
-import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
+import { pushCompletedEventsToSheet, pullProfitsFromSheet } from '../utils/sheetSync';
+import { Download, Printer, Calendar, BarChart3, Sheet, RefreshCw } from 'lucide-react';
 
 // ============================================================
 // Reports — MAIN COMPONENT
@@ -27,7 +28,7 @@ import { Download, Printer, Calendar, BarChart3 } from 'lucide-react';
 
 /** Displays event reports with date-based filtering and summary stats */
 export default function Reports() {
-  const { events, settings } = useApp();
+  const { events, settings, updateEvent, showToast } = useApp();
 
   // ------------------------------------------------------------
   // STATE
@@ -35,6 +36,7 @@ export default function Reports() {
   const [filter, setFilter] = useState('monthly'); // monthly | yearly | custom
   const [statusFilter, setStatusFilter] = useState('completed'); // all | completed | confirmed
   const [excludeGST, setExcludeGST] = useState(false);
+  const [syncing, setSyncing] = useState(false); // true while push/pull is in flight
 
   // Initialize month/year to current period
   const [month, setMonth] = useState(() => {
@@ -133,13 +135,70 @@ export default function Reports() {
     const confirmed = filteredEvents.filter(e => e.status === 'confirmed').length;
     const completed = filteredEvents.filter(e => e.status === 'completed').length;
     const revenue = filteredEvents.reduce((s, e) => s + getEventTotal(e), 0);
-    return { total, drafts, confirmed, completed, revenue };
+    // Profit is pulled back from the Google Sheet's Job Log (event.profit),
+    // and only exists once a completed event has been pushed and synced back.
+    const profit = filteredEvents
+      .filter(e => e.status === 'completed')
+      .reduce((s, e) => s + (Number(e.profit) || 0), 0);
+    return { total, drafts, confirmed, completed, revenue, profit };
   }, [filteredEvents]);
 
 
   // ------------------------------------------------------------
   // EVENT HANDLERS
   // ------------------------------------------------------------
+
+  /**
+   * Pushes EVERY completed event (regardless of the active Reports filter)
+   * to the Google Sheet's Job Log, then opens the sheet in a new tab so
+   * the user can fill in cost columns. Awaits the result and surfaces the
+   * real error if the sheet isn't reachable or isn't configured.
+   */
+  const handleSyncToSheet = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const allCompleted = events.filter(e => e.status === 'completed');
+      const result = await pushCompletedEventsToSheet(allCompleted, settings.sheetSyncUrl, settings.sheetSyncSecret);
+      if (result.success) {
+        showToast(`Synced to sheet (${result.added} added, ${result.updated} updated)`);
+        if (settings.sheetViewUrl) window.open(settings.sheetViewUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        showToast(result.error || 'Failed to sync to sheet', 'error');
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  /**
+   * Pulls the Profit figure back from the sheet for every completed event
+   * and writes it onto the matching event in Firestore. Awaits each write
+   * and reports how many events were updated, or the real error.
+   */
+  const handlePullFromSheet = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const result = await pullProfitsFromSheet(settings.sheetSyncUrl, settings.sheetSyncSecret);
+      if (!result.success) {
+        showToast(result.error || 'Failed to pull from sheet', 'error');
+        return;
+      }
+      const allCompleted = events.filter(e => e.status === 'completed' && result.profits[e.id] !== undefined);
+      const writes = await Promise.all(
+        allCompleted.map(e => updateEvent(e.id, { profit: result.profits[e.id] }))
+      );
+      const failedCount = writes.filter(w => !w.success).length;
+      if (failedCount > 0) {
+        showToast(`Pulled profit for ${allCompleted.length - failedCount} events, ${failedCount} failed to save`, 'error');
+      } else {
+        showToast(`Profit updated for ${allCompleted.length} events`);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   /** Generate PDF report */
   const handleDownload = () => {
@@ -172,7 +231,17 @@ export default function Reports() {
     <div>
       {/* Screen UI - hidden during print */}
       <div data-no-print className="space-y-4">
-        <h1 className="text-xl font-bold text-bb-text">Reports</h1>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h1 className="text-xl font-bold text-bb-text">Reports</h1>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" icon={Sheet} onClick={handleSyncToSheet} disabled={syncing}>
+              {syncing ? 'Working...' : 'Sync to Sheet'}
+            </Button>
+            <Button size="sm" variant="secondary" icon={RefreshCw} onClick={handlePullFromSheet} disabled={syncing}>
+              {syncing ? 'Working...' : 'Pull Profit'}
+            </Button>
+          </div>
+        </div>
 
         {/* Filter Tabs */}
       <div className="flex gap-2">
@@ -226,7 +295,7 @@ export default function Reports() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card>
           <p className="text-xs text-bb-muted">Total</p>
           <p className="text-xl font-bold text-bb-text">{stats.total}</p>
@@ -242,6 +311,10 @@ export default function Reports() {
         <Card>
           <p className="text-xs text-bb-muted">Revenue</p>
           <p className="text-lg font-bold text-bb-gold">{formatCurrency(stats.revenue)}</p>
+        </Card>
+        <Card>
+          <p className="text-xs text-bb-muted">Profit</p>
+          <p className="text-lg font-bold text-emerald-500">{formatCurrency(stats.profit)}</p>
         </Card>
       </div>
 

@@ -67,6 +67,13 @@ export const DEFAULT_SETTINGS = {
     'Please include the invoice number on your check',
   ],
   thankYouMessage: 'Thank You For Your Business!',
+  // Google Sheets sync — see CODE_STRUCTURE.md and src/utils/sheetSync.js.
+  // sheetSyncUrl is the deployed Apps Script Web App /exec URL (push/pull API).
+  // sheetSyncSecret must match the SHARED_SECRET script property on that script.
+  // sheetViewUrl is the actual spreadsheet link, opened when the user taps "Open Sheet".
+  sheetSyncUrl: '',
+  sheetSyncSecret: '',
+  sheetViewUrl: '',
 };
 
 // ============================================================

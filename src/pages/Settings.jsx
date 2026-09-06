@@ -18,7 +18,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
-import { Save, Plus, Trash2, Edit2, X, Building2, Landmark, FileText, Layers, Users } from 'lucide-react';
+import { Save, Plus, Trash2, Edit2, X, Building2, Landmark, FileText, Layers, Users, RefreshCw } from 'lucide-react';
 
 // ============================================================
 // Settings — MAIN COMPONENT
@@ -110,6 +110,7 @@ export default function Settings() {
     { key: 'invoice', label: 'Invoice', icon: FileText },
     { key: 'services', label: 'Services', icon: Layers },
     { key: 'team', label: 'Team', icon: Users },
+    { key: 'sync', label: 'Sheet Sync', icon: RefreshCw },
   ];
 
   const openCat = categories.find(c => c.id === catModal);
@@ -323,6 +324,37 @@ export default function Settings() {
             >
               Sign Out
             </button>
+          </div>
+        </Card>
+      )}
+
+      {tab === 'sync' && (
+        <Card>
+          <div className="space-y-4">
+            <p className="text-sm text-bb-muted">
+              Connects completed events to your Google Sheet's Job Log tab.
+              Paste the values from your Apps Script deployment here — see
+              the setup instructions you were given for exact steps.
+            </p>
+            <Input
+              label="Apps Script Web App URL"
+              value={form.sheetSyncUrl || ''}
+              onChange={e => set('sheetSyncUrl', e.target.value)}
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+            <Input
+              label="Shared Secret"
+              type="password"
+              value={form.sheetSyncSecret || ''}
+              onChange={e => set('sheetSyncSecret', e.target.value)}
+              placeholder="Must match SHARED_SECRET in the Apps Script"
+            />
+            <Input
+              label="Google Sheet Link"
+              value={form.sheetViewUrl || ''}
+              onChange={e => set('sheetViewUrl', e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+            />
           </div>
         </Card>
       )}
