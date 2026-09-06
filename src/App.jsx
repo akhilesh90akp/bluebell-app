@@ -1,12 +1,19 @@
 /**
  * App — Root component with routing and auth gating
+ *
+ * Uses HashRouter (not BrowserRouter) on purpose: this app is hosted on
+ * GitHub Pages, a static file host with no server-side routing support.
+ * HashRouter keeps everything after "#" purely client-side — the browser
+ * never sends it to the server — so a hard refresh on any page (e.g.
+ * /bluebell-app/#/drafts) always resolves correctly. No 404/redirect
+ * workaround needed. See CODE_STRUCTURE.md.
  */
 
 // ============================================================
 // IMPORTS
 // ============================================================
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import Toast from './components/Toast';
 import Layout from './components/Layout';
@@ -47,7 +54,7 @@ function AppRoutes() {
 
   // Authenticated - show main app
   return (
-    <BrowserRouter basename="/bluebell-app">
+    <HashRouter>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
@@ -62,7 +69,7 @@ function AppRoutes() {
         </Route>
       </Routes>
       <Toast message={toast.message} type={toast.type} isVisible={toast.visible} />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

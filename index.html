@@ -15,20 +15,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // GitHub Pages SPA redirect handler
-      // Restores the real URL from ?p= query param before React mounts
-      (function() {
-        var params = new URLSearchParams(window.location.search);
-        var redirectPath = params.get('p');
-        if (redirectPath) {
-          params.delete('p');
-          var remaining = params.toString();
-          var newUrl = redirectPath + (remaining ? '?' + remaining : '');
-          window.history.replaceState(null, '', newUrl);
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // ============================================================
