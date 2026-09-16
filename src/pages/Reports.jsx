@@ -153,17 +153,42 @@ export default function Reports() {
    * to the Google Sheet's Job Log, then opens the sheet in a new tab so
    * the user can fill in cost columns. Awaits the result and surfaces the
    * real error if the sheet isn't reachable or isn't configured.
+   *
+   * Opens the tab BEFORE awaiting the push (not after) and redirects it
+   * once the push completes, rather than calling window.open() after the
+   * await — most browsers only allow window.open() to succeed when it's
+   * called synchronously in direct response to the click; calling it
+   * after an await is commonly blocked as a pop-up with no visible error,
+   * which looked like "nothing happens" and prompted repeated clicking.
    */
   const handleSyncToSheet = async () => {
     if (syncing) return;
     setSyncing(true);
+
+    // Open the tab now, synchronously, while still inside the click
+    // handler's call stack — this is what keeps it from being blocked.
+    // Starts blank; redirected below once we know where it should go.
+    const sheetTab = settings.sheetViewUrl
+      ? window.open('about:blank', '_blank', 'noopener,noreferrer')
+      : null;
+
     try {
       const allCompleted = events.filter(e => e.status === 'completed');
       const result = await pushCompletedEventsToSheet(allCompleted, settings.sheetSyncUrl, settings.sheetSyncSecret);
       if (result.success) {
         showToast(`Synced to sheet (${result.added} added, ${result.updated} updated)`);
-        if (settings.sheetViewUrl) window.open(settings.sheetViewUrl, '_blank', 'noopener,noreferrer');
+        if (settings.sheetViewUrl) {
+          if (sheetTab) {
+            sheetTab.location.href = settings.sheetViewUrl;
+          } else {
+            // Popup was blocked even at the synchronous open — fall back
+            // to navigating the current tab there isn't safe (would lose
+            // the Reports page), so just tell the user directly.
+            showToast('Synced, but the sheet tab was blocked — allow pop-ups for this site to open it automatically', 'error');
+          }
+        }
       } else {
+        if (sheetTab) sheetTab.close(); // don't leave a stray blank tab open on failure
         showToast(result.error || 'Failed to sync to sheet', 'error');
       }
     } finally {
