@@ -61,8 +61,12 @@ function AppRoutes() {
           <Route path="/new" element={<NewDraft />} />
           <Route path="/edit/:eventId" element={<EditDraft />} />
           <Route path="/drafts" element={<DraftsList />} />
-          <Route path="/confirmed" element={<ConfirmedEvents />} />
-          <Route path="/completed" element={<ConfirmedEvents />} />
+          {/* Distinct keys force a remount when switching between these two
+              routes — they render the same component, and without a key
+              React Router reuses the existing instance, leaving its
+              internal tab state stuck on whichever was shown first. */}
+          <Route path="/confirmed" element={<ConfirmedEvents key="confirmed" />} />
+          <Route path="/completed" element={<ConfirmedEvents key="completed" />} />
           <Route path="/bill/:eventId" element={<BillGenerator />} />
           <Route path="/quotation/:eventId" element={<QuotationGenerator />} />
           <Route path="/reports" element={<Reports />} />
