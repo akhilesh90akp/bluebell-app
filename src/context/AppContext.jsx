@@ -148,8 +148,14 @@ export function AppProvider({ children }) {
     }
   };
 
-  /** Updates an existing event by id. Returns { success } or { success: false, error }. */
-  const updateEvent = async (id, data) => {
+  /**
+   * Updates an existing event by id. Returns { success } or { success: false, error }.
+   * Pass { touch: false } for internal bookkeeping writes (e.g. recording
+   * that a sync completed) that shouldn't bump `updatedAt` — otherwise the
+   * bookkeeping write would itself look like a fresh edit and immediately
+   * re-flag the event as changed to anything comparing against `updatedAt`.
+   */
+  const updateEvent = async (id, data, { touch = true } = {}) => {
     if (!user) {
       const error = 'You are signed out — please log in again before saving.';
       console.error('updateEvent: no authenticated user');
@@ -157,7 +163,8 @@ export function AppProvider({ children }) {
     }
     try {
       const evRef = doc(db, 'users', user.uid, 'events', id);
-      await setDoc(evRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+      const payload = touch ? { ...data, updatedAt: new Date().toISOString() } : data;
+      await setDoc(evRef, payload, { merge: true });
       return { success: true };
     } catch (err) {
       console.error('Error updating event:', err.code, err.message);

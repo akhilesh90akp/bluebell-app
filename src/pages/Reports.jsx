@@ -149,10 +149,15 @@ export default function Reports() {
   // ------------------------------------------------------------
 
   /**
-   * Pushes EVERY completed event (regardless of the active Reports filter)
-   * to the Google Sheet's Job Log, then opens the sheet in a new tab so
-   * the user can fill in cost columns. Awaits the result and surfaces the
-   * real error if the sheet isn't reachable or isn't configured.
+   * Pushes only completed events that are new or have changed since their
+   * last successful sync — re-sending every completed event on every click
+   * gets slower as the event history grows, and is unnecessary since most
+   * of it hasn't changed. "Changed" means updatedAt is newer than the
+   * event's own sheetSyncedAt from the last time it was pushed.
+   *
+   * Then opens the sheet in a new tab so the user can fill in cost columns.
+   * Awaits the result and surfaces the real error if the sheet isn't
+   * reachable or isn't configured.
    *
    * Opens the tab BEFORE awaiting the push (not after) and redirects it
    * once the push completes, rather than calling window.open() after the
@@ -160,6 +165,8 @@ export default function Reports() {
    * called synchronously in direct response to the click; calling it
    * after an await is commonly blocked as a pop-up with no visible error,
    * which looked like "nothing happens" and prompted repeated clicking.
+   * A bare blank tab looks broken while it waits, so a small branded
+   * "Syncing..." loading screen is written into it immediately instead.
    */
   const handleSyncToSheet = async () => {
     if (syncing) return;
@@ -167,16 +174,65 @@ export default function Reports() {
 
     // Open the tab now, synchronously, while still inside the click
     // handler's call stack — this is what keeps it from being blocked.
-    // Starts blank; redirected below once we know where it should go.
+    // Shows a loading screen immediately; redirected to the real sheet
+    // below once the sync completes.
     const sheetTab = settings.sheetViewUrl
-      ? window.open('about:blank', '_blank', 'noopener,noreferrer')
+      ? window.open('', '_blank', 'noopener,noreferrer')
       : null;
+    if (sheetTab) {
+      sheetTab.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Bluebell — Syncing...</title>
+            <style>
+              body { margin:0; height:100vh; display:flex; align-items:center;
+                justify-content:center; font-family:system-ui,-apple-system,sans-serif;
+                background:#f7f5fa; }
+              .spinner { width:32px; height:32px; border:3px solid #e5ddf0;
+                border-top-color:#331948; border-radius:50%;
+                animation:spin 0.8s linear infinite; margin:0 auto 14px; }
+              @keyframes spin { to { transform:rotate(360deg); } }
+              p { color:#331948; font-size:15px; text-align:center; margin:0; }
+            </style>
+          </head>
+          <body>
+            <div>
+              <div class="spinner"></div>
+              <p>Syncing to Google Sheet&hellip;</p>
+            </div>
+          </body>
+        </html>
+      `);
+      sheetTab.document.close();
+    }
 
     try {
       const allCompleted = events.filter(e => e.status === 'completed');
-      const result = await pushCompletedEventsToSheet(allCompleted, settings.sheetSyncUrl, settings.sheetSyncSecret);
+      const eventsToSync = allCompleted.filter(e =>
+        !e.sheetSyncedAt || (e.updatedAt && e.updatedAt > e.sheetSyncedAt)
+      );
+
+      if (eventsToSync.length === 0) {
+        showToast('Already up to date — nothing new to sync');
+        if (settings.sheetViewUrl) {
+          if (sheetTab) sheetTab.location.href = settings.sheetViewUrl;
+          else showToast('The sheet tab was blocked — allow pop-ups for this site to open it automatically', 'error');
+        }
+        return;
+      }
+
+      const result = await pushCompletedEventsToSheet(eventsToSync, settings.sheetSyncUrl, settings.sheetSyncSecret);
       if (result.success) {
         showToast(`Synced to sheet (${result.added} added, ${result.updated} updated)`);
+        // Record that these specific events are now caught up, so the next
+        // click only re-sends what's changed since. { touch: false } is
+        // essential here — otherwise this bookkeeping write would itself
+        // bump updatedAt and immediately re-flag every event as changed.
+        const syncedAt = new Date().toISOString();
+        await Promise.all(
+          eventsToSync.map(e => updateEvent(e.id, { sheetSyncedAt: syncedAt }, { touch: false }))
+        );
         if (settings.sheetViewUrl) {
           if (sheetTab) {
             sheetTab.location.href = settings.sheetViewUrl;
@@ -188,7 +244,7 @@ export default function Reports() {
           }
         }
       } else {
-        if (sheetTab) sheetTab.close(); // don't leave a stray blank tab open on failure
+        if (sheetTab) sheetTab.close(); // don't leave a stray loading tab open on failure
         showToast(result.error || 'Failed to sync to sheet', 'error');
       }
     } finally {
@@ -200,6 +256,12 @@ export default function Reports() {
    * Pulls the Profit figure back from the sheet for every completed event
    * and writes it onto the matching event in Firestore. Awaits each write
    * and reports how many events were updated, or the real error.
+   *
+   * Skips events whose pulled profit is unchanged from what's already
+   * stored, and uses { touch: false } for the writes it does make — this
+   * is a pulled/derived field, not an app-owned edit, so it must not bump
+   * updatedAt or it would falsely re-flag those events as needing a fresh
+   * push next time "Sync to Sheet" runs.
    */
   const handlePullFromSheet = async () => {
     if (syncing) return;
@@ -210,15 +272,23 @@ export default function Reports() {
         showToast(result.error || 'Failed to pull from sheet', 'error');
         return;
       }
-      const allCompleted = events.filter(e => e.status === 'completed' && result.profits[e.id] !== undefined);
+      const changed = events.filter(e =>
+        e.status === 'completed' &&
+        result.profits[e.id] !== undefined &&
+        Number(e.profit) !== Number(result.profits[e.id])
+      );
+      if (changed.length === 0) {
+        showToast('Profit already up to date');
+        return;
+      }
       const writes = await Promise.all(
-        allCompleted.map(e => updateEvent(e.id, { profit: result.profits[e.id] }))
+        changed.map(e => updateEvent(e.id, { profit: result.profits[e.id] }, { touch: false }))
       );
       const failedCount = writes.filter(w => !w.success).length;
       if (failedCount > 0) {
-        showToast(`Pulled profit for ${allCompleted.length - failedCount} events, ${failedCount} failed to save`, 'error');
+        showToast(`Pulled profit for ${changed.length - failedCount} events, ${failedCount} failed to save`, 'error');
       } else {
-        showToast(`Profit updated for ${allCompleted.length} events`);
+        showToast(`Profit updated for ${changed.length} events`);
       }
     } finally {
       setSyncing(false);
