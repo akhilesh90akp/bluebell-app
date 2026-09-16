@@ -6,14 +6,15 @@
  * number, discount, GST (intra/inter-state), and round-off.
  * Includes print and WhatsApp sharing capabilities.
  *
- * Read-only vs. Firestore: this page does not write any data back — it only
- * reads `events`/`settings` from AppContext to build the printable document.
+ * Bill details (invoice no/date, bill-to, discount, advance, GST settings)
+ * auto-save to the event 1s after the user stops editing, and a manual
+ * Save button is also available — see CODE_STRUCTURE.md §3-4.
  */
 
 // ============================================================
 // IMPORTS
 // ============================================================
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Button from '../components/Button';
@@ -23,7 +24,7 @@ import Toggle from '../components/Toggle';
 import Card from '../components/Card';
 import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
 import { DEFAULT_SAC_CODE } from '../constants/data';
-import { ArrowLeft, Printer, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Printer, MessageSquare, Save } from 'lucide-react';
 
 // ============================================================
 // HELPERS
@@ -98,7 +99,7 @@ function getEventItemsData(event) {
 /** Builds and previews a printable invoice document for an event */
 export default function BillGenerator() {
   const { eventId } = useParams();
-  const { events, settings } = useApp();
+  const { events, settings, updateEvent, showToast } = useApp();
   const navigate = useNavigate();
   const event = events.find(e => e.id === eventId);
 
@@ -109,19 +110,122 @@ export default function BillGenerator() {
   // STATE
   // ------------------------------------------------------------
 
-  // Invoice configuration state
-  const [invoiceNo, setInvoiceNo] = useState(() => genInvoiceNo(settings.invoicePrefix, billedCount));
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [billToName, setBillToName] = useState(event?.clientName || '');
-  const [billToAddress, setBillToAddress] = useState(event?.clientAddress || '');
-  const [discount, setDiscount] = useState(0);
-  const [advance, setAdvance] = useState(0);
-  const [gstEnabled, setGstEnabled] = useState(true);
-  const [gstRate, setGstRate] = useState(String(settings.defaultGstRate || 18));
-  const [interState, setInterState] = useState(false);
+  // Invoice configuration state — seeded from event.billDetails when a
+  // bill was already saved for this event, so re-opening the page
+  // doesn't lose previous edits.
+  const bd = event?.billDetails || {};
+  const [invoiceNo, setInvoiceNo] = useState(() => bd.invoiceNo ?? genInvoiceNo(settings.invoicePrefix, billedCount));
+  const [invoiceDate, setInvoiceDate] = useState(() => bd.invoiceDate ?? new Date().toISOString().split('T')[0]);
+  const [billToName, setBillToName] = useState(() => bd.billToName ?? event?.clientName ?? '');
+  const [billToAddress, setBillToAddress] = useState(() => bd.billToAddress ?? event?.clientAddress ?? '');
+  const [discount, setDiscount] = useState(() => bd.discount ?? 0);
+  const [advance, setAdvance] = useState(() => bd.advance ?? 0);
+  const [gstEnabled, setGstEnabled] = useState(() => bd.gstEnabled ?? true);
+  const [gstRate, setGstRate] = useState(() => bd.gstRate ?? String(settings.defaultGstRate || 18));
+  const [interState, setInterState] = useState(() => bd.interState ?? false);
+
+  // `hasUnsavedChanges` drives the manual Save button's "already saved"
+  // vs. "save now" behavior. `autoSaving` shows a brief "Saving..." state.
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+
+  // Holds the JSON of the last successfully-saved bill details, so the
+  // auto-save effect can tell a real edit apart from the initial
+  // hydration-from-Firestore (which shouldn't itself trigger a save).
+  // null until that hydration has happened once.
+  const lastSavedRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
 
   // Ref for printable section
   const pdfRef = useRef(null);
+
+  // ------------------------------------------------------------
+  // DATA LOADING / EFFECTS — BILL DETAILS AUTO-SAVE
+  // ------------------------------------------------------------
+
+  // Hydrate from event.billDetails once the event loads (handles the
+  // async Firestore listener — event may not be ready on first render),
+  // and record this as the "last saved" snapshot. Comparing against this
+  // snapshot (rather than a first-render flag) is what lets the auto-save
+  // effect below tell a genuine user edit apart from this hydration step.
+  useEffect(() => {
+    if (!event) return;
+    const loaded = event.billDetails || {};
+    const hydrated = {
+      invoiceNo: loaded.invoiceNo ?? invoiceNo,
+      invoiceDate: loaded.invoiceDate ?? invoiceDate,
+      billToName: loaded.billToName ?? billToName,
+      billToAddress: loaded.billToAddress ?? billToAddress,
+      discount: loaded.discount ?? discount,
+      advance: loaded.advance ?? advance,
+      gstEnabled: loaded.gstEnabled ?? gstEnabled,
+      gstRate: loaded.gstRate ?? gstRate,
+      interState: loaded.interState ?? interState,
+    };
+    setInvoiceNo(hydrated.invoiceNo);
+    setInvoiceDate(hydrated.invoiceDate);
+    setBillToName(hydrated.billToName);
+    setBillToAddress(hydrated.billToAddress);
+    setDiscount(hydrated.discount);
+    setAdvance(hydrated.advance);
+    setGstEnabled(hydrated.gstEnabled);
+    setGstRate(hydrated.gstRate);
+    setInterState(hydrated.interState);
+    lastSavedRef.current = JSON.stringify(hydrated);
+    // Only re-run when a different event loads, not on every field edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id]);
+
+  /** Persists the given bill details to the event. Awaits the write and only confirms success once Firestore returns it. */
+  const saveBillDetails = async (details, detailsStr) => {
+    setAutoSaving(true);
+    try {
+      const result = await updateEvent(eventId, { billDetails: details });
+      if (result.success) {
+        lastSavedRef.current = detailsStr;
+        setHasUnsavedChanges(false);
+        showToast('Bill details saved');
+      } else {
+        showToast(result.error || 'Failed to save bill details', 'error');
+      }
+    } finally {
+      setAutoSaving(false);
+    }
+  };
+
+  // Auto-saves 1s after the user stops editing any bill-detail field.
+  // Skipped entirely until hydration above has established a baseline
+  // (lastSavedRef.current !== null), and skipped again if the current
+  // values already match what's saved (e.g. right after hydration, or
+  // after an edit is undone back to the saved value).
+  useEffect(() => {
+    if (lastSavedRef.current === null) return;
+    const current = { invoiceNo, invoiceDate, billToName, billToAddress, discount, advance, gstEnabled, gstRate, interState };
+    const currentStr = JSON.stringify(current);
+    if (currentStr === lastSavedRef.current) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+    setHasUnsavedChanges(true);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveBillDetails(current, currentStr);
+    }, 1000);
+    return () => clearTimeout(saveTimeoutRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceNo, invoiceDate, billToName, billToAddress, discount, advance, gstEnabled, gstRate, interState]);
+
+  /** Manual Save button — saves immediately if there's a pending edit not yet auto-saved, otherwise just confirms it's already saved. */
+  const handleManualSave = () => {
+    const current = { invoiceNo, invoiceDate, billToName, billToAddress, discount, advance, gstEnabled, gstRate, interState };
+    const currentStr = JSON.stringify(current);
+    if (lastSavedRef.current === currentStr) {
+      showToast('Already saved');
+      return;
+    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveBillDetails(current, currentStr);
+  };
 
   // ------------------------------------------------------------
   // DERIVED / CALCULATED VALUES
@@ -242,6 +346,9 @@ export default function BillGenerator() {
 
         {/* Action buttons */}
         <div data-no-print className="flex gap-2 flex-wrap">
+          <Button icon={Save} variant={hasUnsavedChanges ? 'secondary' : 'outline'} onClick={handleManualSave} disabled={autoSaving}>
+            {autoSaving ? 'Saving...' : 'Save'}
+          </Button>
           <Button icon={Printer} onClick={handlePrint}>Print / Save PDF</Button>
           <Button icon={MessageSquare} variant="success" onClick={handleWhatsApp}>Share via WhatsApp</Button>
           <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
