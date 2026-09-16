@@ -176,8 +176,15 @@ export default function Reports() {
     // handler's call stack — this is what keeps it from being blocked.
     // Shows a loading screen immediately; redirected to the real sheet
     // below once the sync completes.
+    //
+    // Deliberately NOT passing 'noopener'/'noreferrer' here — either one
+    // makes window.open() always return null by design (that's the whole
+    // point of "no opener": the caller doesn't get a handle back), which
+    // would make it indistinguishable from an actually-blocked popup. We
+    // genuinely need the real reference this time, to write the loading
+    // screen into it and redirect it once the sync finishes.
     const sheetTab = settings.sheetViewUrl
-      ? window.open('', '_blank', 'noopener,noreferrer')
+      ? window.open('', '_blank')
       : null;
     if (sheetTab) {
       sheetTab.document.write(`
