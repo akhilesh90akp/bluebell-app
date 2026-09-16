@@ -62,6 +62,7 @@ function AppRoutes() {
           <Route path="/edit/:eventId" element={<EditDraft />} />
           <Route path="/drafts" element={<DraftsList />} />
           <Route path="/confirmed" element={<ConfirmedEvents />} />
+          <Route path="/completed" element={<ConfirmedEvents />} />
           <Route path="/bill/:eventId" element={<BillGenerator />} />
           <Route path="/quotation/:eventId" element={<QuotationGenerator />} />
           <Route path="/reports" element={<Reports />} />

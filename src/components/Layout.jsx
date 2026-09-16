@@ -11,7 +11,7 @@
 // ============================================================
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, FileText, CheckCircle2, Settings, Plus, BarChart3, LogOut } from 'lucide-react';
+import { LayoutDashboard, FilePlus, FileText, CheckCircle2, PartyPopper, Settings, Plus, BarChart3, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 /** Navigation items displayed in the desktop sidebar */
@@ -20,6 +20,7 @@ const sidebarNav = [
   { to: '/new', icon: FilePlus, label: 'New Event' },
   { to: '/drafts', icon: FileText, label: 'Drafts' },
   { to: '/confirmed', icon: CheckCircle2, label: 'Confirmed' },
+  { to: '/completed', icon: PartyPopper, label: 'Completed' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];

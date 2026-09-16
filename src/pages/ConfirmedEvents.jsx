@@ -71,10 +71,14 @@ export default function ConfirmedEvents() {
   // STATE
   // ------------------------------------------------------------
   const [search, setSearch] = useState('');
-  // Opens on whichever tab we were sent from (e.g. EditDraft passes
-  // { statusFilter: 'completed' } via navigate() so editing a completed
-  // event and saving returns you to Completed, not the default Confirmed).
-  const [statusFilter, setStatusFilter] = useState(location.state?.statusFilter || 'confirmed'); // 'confirmed' | 'completed'
+  // Opens on whichever tab makes sense for how we got here: EditDraft
+  // passes { statusFilter: 'completed' } via navigate() so editing a
+  // completed event and saving returns you to Completed, not the default
+  // Confirmed; the dedicated "/completed" sidebar link opens straight on
+  // that tab by URL alone (no navigation state involved).
+  const [statusFilter, setStatusFilter] = useState(
+    location.state?.statusFilter || (location.pathname === '/completed' ? 'completed' : 'confirmed')
+  ); // 'confirmed' | 'completed'
   const [addItemModal, setAddItemModal] = useState(null); // event id for add-item modal
   const [priceModal, setPriceModal] = useState(null); // event id for pricing modal
   const [newItem, setNewItem] = useState('');
