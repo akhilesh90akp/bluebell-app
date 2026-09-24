@@ -11,15 +11,16 @@
 import React from 'react';
 
 /** Renders a toggle switch with label and optional description */
-export default function Toggle({ label, checked = false, onChange, description }) {
+export default function Toggle({ label, checked = false, onChange, description, disabled = false }) {
   return (
-    <label className="flex items-start gap-3 cursor-pointer group">
+    <label className={`flex items-start gap-3 group ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
       {/* Custom toggle track and thumb */}
       <div className="relative flex-shrink-0 mt-0.5">
         <input
           type="checkbox"
           checked={checked}
           onChange={onChange}
+          disabled={disabled}
           className="sr-only peer"
         />
         {/* Track background */}
@@ -42,7 +43,7 @@ export default function Toggle({ label, checked = false, onChange, description }
       {/* Label and description text */}
       <div className="flex flex-col">
         {label && (
-          <span className="text-sm font-medium text-bb-text group-hover:text-bb-accent transition-colors">
+          <span className={`text-sm font-medium text-bb-text transition-colors ${disabled ? '' : 'group-hover:text-bb-accent'}`}>
             {label}
           </span>
         )}

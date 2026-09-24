@@ -3,7 +3,23 @@
  *
  * Generates a print-ready quotation for an event. Groups items by main event
  * and sub-events. Allows adding/removing items, setting per-item quantities
- * and rates, and enabling GST. Supports printing and WhatsApp sharing.
+ * and rates, reordering items via drag-and-drop, grouping items into priced
+ * bundles, and hiding itemized pricing in favor of one final amount per
+ * section. Supports printing and WhatsApp sharing.
+ *
+ * Pricing model (also read by BillGenerator — see utils/helpers.js):
+ *   - Each item's price lives in itemPrices[`${sectionId}::${name}`] = {qty, rate}
+ *   - event.bundles = [{ id, name, itemKeys, amount }] groups 2+ items (from
+ *     the SAME section) under one shared price. Membership is explicit and
+ *     fixed (set via "Create Group", cleared via "Ungroup") — not inferred
+ *     from drag position, so reordering can never accidentally break a bundle.
+ *   - event.hidePrices (bool) + event.finalAmounts ({ [sectionId]: number }):
+ *     when on, per-item/bundle prices are hidden everywhere; each section
+ *     instead gets one manually-entered final amount, and the grand total is
+ *     the sum of those. Disabled while any bundle exists (ungroup first).
+ *   - Item order is just the order of names in mainEvent.items / a given
+ *     sub-event's items — reordering (via drag) rewrites that array directly,
+ *     so Bill automatically shows the same order with no extra data needed.
  *
  * Save flow: handleSave awaits AppContext.updateEvent() and only confirms
  * success once Firestore actually returns it. See CODE_STRUCTURE.md §4.
@@ -14,6 +30,9 @@
 // ============================================================
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -21,65 +40,43 @@ import Input from '../components/Input';
 import Select from '../components/Select';
 import Toggle from '../components/Toggle';
 import Modal from '../components/Modal';
-import { formatCurrency, formatDateReadable, calcGST, waLink } from '../utils/helpers';
-import { ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  formatCurrency, formatDateReadable, calcGST, waLink,
+  buildLineEntries, flattenLineEntries, computeSectionTotal,
+} from '../utils/helpers';
+import {
+  ArrowLeft, Printer, MessageSquare, X, Plus, Save, Package,
+  ChevronDown, ChevronRight, GripVertical, Layers, Ungroup,
+} from 'lucide-react';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
-/**
- * Helper: get all items from an event (both old and new format).
- * Returns { allItems, eventGroups } where eventGroups is an array of
- * { name, date, location, items } for display in the document.
- */
-function getEventItemsData(event) {
-  // New format with mainEvent
-  if (event.mainEvent) {
-    const mainItems = event.mainEvent.items || [];
-    const subEvents = event.subEvents || [];
-    const allItems = [...mainItems];
-    subEvents.forEach(s => {
-      (s.items || []).forEach(item => {
-        if (!allItems.includes(item)) allItems.push(item);
-      });
-    });
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
-    const eventGroups = [];
-    if (mainItems.length > 0 || allItems.length === 0) {
-      eventGroups.push({
-        id: 'main',
-        name: event.mainEvent.name || event.eventType || 'Main Event',
-        date: event.mainEvent.date || '',
-        location: event.mainEvent.location || '',
-        items: mainItems,
-      });
-    }
-    subEvents.forEach(s => {
-      if ((s.items || []).length > 0) {
-        eventGroups.push({
-          id: s.id || s.name,
-          name: s.name || 'Sub Event',
-          date: s.date || '',
-          location: s.location || '',
-          items: s.items,
-        });
-      }
-    });
-
-    return { allItems, eventGroups };
-  }
-
-  // Old format (flat items array)
-  const items = event.items || [];
-  const eventGroups = [{
-    id: 'main',
-    name: event.eventType || 'Event',
-    date: event.date || '',
-    location: event.eventLocation || '',
-    items: items,
-  }];
-  return { allItems: items, eventGroups };
+/** Wraps one line entry (item or bundle) to make it draggable via dnd-kit */
+function SortableEntry({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-1">
+      <button
+        {...attributes} {...listeners}
+        className="mt-2 p-1.5 text-bb-muted hover:text-bb-text cursor-grab active:cursor-grabbing touch-none shrink-0"
+        title="Drag to reorder"
+      >
+        <GripVertical size={16} />
+      </button>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
 }
 
 // ============================================================
@@ -97,31 +94,45 @@ export default function QuotationGenerator() {
   // STATE
   // ------------------------------------------------------------
 
-  // Initialize item prices from existing event data using eventId::itemName keys
-  const [itemPrices, setItemPrices] = useState(() => {
-    if (!event) return {};
-    const p = {};
-    const stored = event.itemPrices || {};
-    if (event.mainEvent) {
-      (event.mainEvent.items || []).forEach(item => {
-        const key = `main::${item}`;
-        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-      });
-      (event.subEvents || []).forEach(s => {
-        (s.items || []).forEach(item => {
-          const key = `${s.id}::${item}`;
-          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-        });
-      });
+  /**
+   * Derives the editor's working state from an event: per-section item
+   * name arrays (order = the order actually persisted), item prices keyed
+   * eventId::itemName, bundles, and hide-prices settings. Used both for
+   * the initial lazy state below and the load-sync effect, so an event
+   * that arrives asynchronously from Firestore (not yet ready on first
+   * render) is handled the same way as one that's already loaded.
+   */
+  const deriveState = (ev) => {
+    if (!ev) return { sectionItems: {}, itemPrices: {}, bundles: [], hidePrices: false, finalAmounts: {} };
+    const stored = ev.itemPrices || {};
+    const sectionItems = {};
+    if (ev.mainEvent) {
+      sectionItems.main = [...(ev.mainEvent.items || [])];
+      (ev.subEvents || []).forEach(s => { sectionItems[s.id] = [...(s.items || [])]; });
     } else {
-      // Old format: flat items
-      (event.items || []).forEach(item => {
-        const key = `main::${item}`;
-        p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-      });
+      sectionItems.main = [...(ev.items || [])];
     }
-    return p;
-  });
+    const itemPrices = {};
+    Object.entries(sectionItems).forEach(([sectionId, names]) => {
+      names.forEach(name => {
+        const key = `${sectionId}::${name}`;
+        itemPrices[key] = stored[key] || stored[name] || { qty: 1, rate: 0 };
+      });
+    });
+    return {
+      sectionItems,
+      itemPrices,
+      bundles: ev.bundles || [],
+      hidePrices: ev.hidePrices || false,
+      finalAmounts: ev.finalAmounts || {},
+    };
+  };
+
+  const [sectionItems, setSectionItems] = useState(() => deriveState(event).sectionItems);
+  const [itemPrices, setItemPrices] = useState(() => deriveState(event).itemPrices);
+  const [bundles, setBundles] = useState(() => deriveState(event).bundles);
+  const [hidePrices, setHidePrices] = useState(() => deriveState(event).hidePrices);
+  const [finalAmounts, setFinalAmounts] = useState(() => deriveState(event).finalAmounts);
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstRate, setGstRate] = useState(String(settings.defaultGstRate || 18));
   const [validityDays, setValidityDays] = useState(15);
@@ -131,20 +142,12 @@ export default function QuotationGenerator() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Local items list tracking (synced from event) - stores keys in eventId::itemName format
-  const [localItems, setLocalItems] = useState(() => {
-    if (!event) return [];
-    const keys = [];
-    if (event.mainEvent) {
-      (event.mainEvent.items || []).forEach(item => keys.push(`main::${item}`));
-      (event.subEvents || []).forEach(s => {
-        (s.items || []).forEach(item => keys.push(`${s.id}::${item}`));
-      });
-    } else {
-      (event.items || []).forEach(item => keys.push(`main::${item}`));
-    }
-    return keys;
-  });
+  // Bundle creation: which items are checkbox-selected per section, and
+  // the section currently showing the "Create Group" popup (null = closed)
+  const [selectedForGroup, setSelectedForGroup] = useState({}); // { [sectionId]: Set<name> }
+  const [groupModalSection, setGroupModalSection] = useState(null);
+  const [groupName, setGroupName] = useState('');
+  const [groupAmount, setGroupAmount] = useState('');
 
   // Ref for printable section (must be before early return)
   const pdfRef = useRef(null);
@@ -152,38 +155,29 @@ export default function QuotationGenerator() {
   // `saving` disables the Save button while the Firestore write is in flight.
   const [saving, setSaving] = useState(false);
 
+  // Drag sensor: small activation distance so it doesn't fight with taps
+  // on the qty/rate inputs or the remove button within the same row.
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  // Track whether initial data has loaded yet, since `event` (and its
+  // items) can arrive asynchronously from Firestore after first render.
+  const loadedRef = useRef(!!event);
+
   // ------------------------------------------------------------
   // DATA LOADING / EFFECTS
   // ------------------------------------------------------------
 
-  // Sync localItems when event loads (context may load async from Firestore)
+  // Sync editor state once the event actually loads (handles the async
+  // Firestore listener — event may not be ready on first render).
   useEffect(() => {
-    if (event && localItems.length === 0) {
-      const keys = [];
-      const p = {};
-      const stored = event.itemPrices || {};
-      if (event.mainEvent) {
-        (event.mainEvent.items || []).forEach(item => {
-          const key = `main::${item}`;
-          keys.push(key);
-          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-        });
-        (event.subEvents || []).forEach(s => {
-          (s.items || []).forEach(item => {
-            const key = `${s.id}::${item}`;
-            keys.push(key);
-            p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-          });
-        });
-      } else {
-        (event.items || []).forEach(item => {
-          const key = `main::${item}`;
-          keys.push(key);
-          p[key] = stored[key] || stored[item] || { qty: 1, rate: 0 };
-        });
-      }
-      setLocalItems(keys);
-      setItemPrices(p);
+    if (event && !loadedRef.current) {
+      const derived = deriveState(event);
+      setSectionItems(derived.sectionItems);
+      setItemPrices(derived.itemPrices);
+      setBundles(derived.bundles);
+      setHidePrices(derived.hidePrices);
+      setFinalAmounts(derived.finalAmounts);
+      loadedRef.current = true;
     }
   }, [event]);
 
@@ -191,62 +185,56 @@ export default function QuotationGenerator() {
   // DERIVED / CALCULATED VALUES
   // ------------------------------------------------------------
 
-  // Calculate subtotal from all items
-  const subtotal = useMemo(() =>
-    localItems.reduce((s, key) => {
-      const p = itemPrices[key] || { qty: 1, rate: 0 };
-      return s + (p.qty * p.rate);
-    }, 0)
-  , [localItems, itemPrices]);
-
-  // Calculate GST breakdown
-  const gstData = useMemo(() => calcGST(subtotal, gstEnabled ? Number(gstRate) : 0), [subtotal, gstEnabled, gstRate]);
-
-  // Build event groups for printable document using current local items
+  // Build event groups (main + sub-events) with their current item names,
+  // in save order. Always rendered as its own section, headline included.
   const printGroups = useMemo(() => {
     if (!event) return [];
-    // Use the event structure to determine groups
     if (event.mainEvent) {
-      const groups = [];
-      // Get item names from localItems keys that belong to main
-      const mainItemKeys = localItems.filter(k => k.startsWith('main::'));
-      const mainItemNames = mainItemKeys.map(k => k.replace('main::', ''));
-
-      if (mainItemNames.length > 0) {
-        groups.push({
-          id: 'main',
-          name: event.mainEvent.name || event.eventType || 'Main Event',
-          date: event.mainEvent.date || '',
-          location: event.mainEvent.location || '',
-          items: mainItemNames,
-        });
-      }
+      const groups = [{
+        id: 'main',
+        name: event.mainEvent.name || event.eventType || 'Main Event',
+        date: event.mainEvent.date || '',
+        location: event.mainEvent.location || '',
+        items: sectionItems.main || [],
+      }];
       (event.subEvents || []).forEach(s => {
-        const subItemKeys = localItems.filter(k => k.startsWith(`${s.id}::`));
-        const subItemNames = subItemKeys.map(k => k.replace(`${s.id}::`, ''));
-        if (subItemNames.length > 0) {
-          groups.push({
-            id: s.id || s.name,
-            name: s.name || 'Sub Event',
-            date: s.date || '',
-            location: s.location || '',
-            items: subItemNames,
-          });
-        }
+        groups.push({
+          id: s.id,
+          name: s.name || 'Sub Event',
+          date: s.date || '',
+          location: s.location || '',
+          items: sectionItems[s.id] || [],
+        });
       });
       return groups;
     }
-
     // Old format - single group
-    const mainItemNames = localItems.map(k => k.replace('main::', ''));
     return [{
       id: 'main',
       name: event.eventType || 'Event',
       date: event.date || '',
       location: event.eventLocation || '',
-      items: mainItemNames,
+      items: sectionItems.main || [],
     }];
-  }, [event, localItems]);
+  }, [event, sectionItems]);
+
+  // Each section's total, respecting hide-prices/bundles (see utils/helpers.js)
+  const sectionTotals = useMemo(() => {
+    const totals = {};
+    printGroups.forEach(g => {
+      totals[g.id] = computeSectionTotal(g.id, g.items, itemPrices, bundles, hidePrices, finalAmounts);
+    });
+    return totals;
+  }, [printGroups, itemPrices, bundles, hidePrices, finalAmounts]);
+
+  // Grand subtotal across all sections
+  const subtotal = useMemo(
+    () => Object.values(sectionTotals).reduce((s, v) => s + v, 0),
+    [sectionTotals]
+  );
+
+  // Calculate GST breakdown
+  const gstData = useMemo(() => calcGST(subtotal, gstEnabled ? Number(gstRate) : 0), [subtotal, gstEnabled, gstRate]);
 
   if (!event) {
     return (
@@ -265,30 +253,31 @@ export default function QuotationGenerator() {
   const handleAddItem = () => {
     const name = newItemName.trim();
     if (!name) return;
-    const key = `main::${name}`;
-    if (localItems.includes(key)) return;
-    const updated = [...localItems, key];
-    setLocalItems(updated);
-    setItemPrices(p => ({ ...p, [key]: { qty: 1, rate: 0 } }));
+    if ((sectionItems.main || []).includes(name)) return;
+    setSectionItems(s => ({ ...s, main: [...(s.main || []), name] }));
+    setItemPrices(p => ({ ...p, [`main::${name}`]: { qty: 1, rate: 0 } }));
     setNewItemName('');
   };
 
   /** Adds a predefined item from a category to the quotation (added to main event) */
   const handleAddFromCategory = (itemName) => {
-    const key = `main::${itemName}`;
-    if (localItems.includes(key)) return;
-    const updated = [...localItems, key];
-    setLocalItems(updated);
-    setItemPrices(p => ({ ...p, [key]: { qty: 1, rate: 0 } }));
+    if ((sectionItems.main || []).includes(itemName)) return;
+    setSectionItems(s => ({ ...s, main: [...(s.main || []), itemName] }));
+    setItemPrices(p => ({ ...p, [`main::${itemName}`]: { qty: 1, rate: 0 } }));
   };
 
-  /** Removes an item from the quotation and its price data */
-  const handleRemoveItem = (key) => {
-    const updated = localItems.filter(i => i !== key);
-    setLocalItems(updated);
-    const newPrices = { ...itemPrices };
-    delete newPrices[key];
-    setItemPrices(newPrices);
+  /** Removes an item from the quotation and its price data. If it belonged to a bundle, removes it from that bundle too (deleting the bundle if it drops to 1 member). */
+  const handleRemoveItem = (sectionId, name) => {
+    const key = `${sectionId}::${name}`;
+    setSectionItems(s => ({ ...s, [sectionId]: (s[sectionId] || []).filter(n => n !== name) }));
+    setItemPrices(p => {
+      const next = { ...p };
+      delete next[key];
+      return next;
+    });
+    setBundles(bs => bs
+      .map(b => b.itemKeys.includes(key) ? { ...b, itemKeys: b.itemKeys.filter(k => k !== key) } : b)
+      .filter(b => b.itemKeys.length >= 2)); // a "bundle" of 1 item isn't a bundle anymore
   };
 
   /** Toggles a category's expanded state in the add-from-category modal */
@@ -296,32 +285,80 @@ export default function QuotationGenerator() {
     setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
   };
 
-  /** Persists the current items and prices back to the event in context. Awaits the write; toasts real success/failure. */
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — REORDER
+  // ------------------------------------------------------------
+
+  /** Handles a drag-drop reorder within one section's line entries (items and/or bundles, each bundle moving as one block). */
+  const handleDragEnd = (sectionId, entries) => (dragEvent) => {
+    const { active, over } = dragEvent;
+    if (!over || active.id === over.id) return;
+    const oldIndex = entries.findIndex(e => (e.type === 'bundle' ? `bundle:${e.bundle.id}` : e.key) === active.id);
+    const newIndex = entries.findIndex(e => (e.type === 'bundle' ? `bundle:${e.bundle.id}` : e.key) === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(entries, oldIndex, newIndex);
+    const newNames = flattenLineEntries(reordered, sectionId);
+    setSectionItems(s => ({ ...s, [sectionId]: newNames }));
+  };
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — BUNDLES (CREATE GROUP / UNGROUP)
+  // ------------------------------------------------------------
+
+  /** Toggles one item's checkbox selection for grouping, within a given section. */
+  const toggleSelectForGroup = (sectionId, name) => {
+    setSelectedForGroup(prev => {
+      const current = new Set(prev[sectionId] || []);
+      if (current.has(name)) current.delete(name); else current.add(name);
+      return { ...prev, [sectionId]: current };
+    });
+  };
+
+  /** Opens the "Create Group" popup for whichever section currently has 2+ items selected. */
+  const openGroupModal = (sectionId) => {
+    setGroupModalSection(sectionId);
+    setGroupName('');
+    setGroupAmount('');
+  };
+
+  /** Confirms bundle creation: groups the selected items under one shared price and clears their individual selection/prices. */
+  const handleCreateGroup = () => {
+    const sectionId = groupModalSection;
+    const names = Array.from(selectedForGroup[sectionId] || []);
+    if (names.length < 2) return;
+    const amount = Number(groupAmount) || 0;
+    const bundle = {
+      id: `bundle_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: groupName.trim() || names.join(' + '),
+      itemKeys: names.map(n => `${sectionId}::${n}`),
+      amount,
+    };
+    setBundles(bs => [...bs, bundle]);
+    setSelectedForGroup(prev => ({ ...prev, [sectionId]: new Set() }));
+    setGroupModalSection(null);
+  };
+
+  /** Dissolves a bundle — its member items return to being normal, individually-priced items (starting at ₹0, since the bundle price doesn't split automatically). */
+  const handleUngroup = (bundleId) => {
+    setBundles(bs => bs.filter(b => b.id !== bundleId));
+  };
+
+  // ------------------------------------------------------------
+  // EVENT HANDLERS — SAVE
+  // ------------------------------------------------------------
+
+  /** Persists the current items, prices, bundles, and hide-prices settings back to the event in context. Awaits the write; toasts real success/failure. */
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      // Save itemPrices with eventId::itemName keys
-      const updateData = { itemPrices: itemPrices, totalAmount: subtotal };
+      const updateData = { itemPrices, bundles, hidePrices, finalAmounts, totalAmount: subtotal };
 
       if (event.mainEvent) {
-        // Reconstruct mainEvent items from localItems keys
-        const mainItems = localItems
-          .filter(k => k.startsWith('main::'))
-          .map(k => k.replace('main::', ''));
-        updateData.mainEvent = { ...event.mainEvent, items: mainItems };
-
-        // Reconstruct sub-event items from localItems keys
-        const subEvents = (event.subEvents || []).map(s => {
-          const subItems = localItems
-            .filter(k => k.startsWith(`${s.id}::`))
-            .map(k => k.replace(`${s.id}::`, ''));
-          return { ...s, items: subItems };
-        });
-        updateData.subEvents = subEvents;
+        updateData.mainEvent = { ...event.mainEvent, items: sectionItems.main || [] };
+        updateData.subEvents = (event.subEvents || []).map(s => ({ ...s, items: sectionItems[s.id] || [] }));
       } else {
-        const items = localItems.map(k => k.replace('main::', ''));
-        updateData.items = items;
+        updateData.items = sectionItems.main || [];
       }
 
       const result = await updateEvent(eventId, updateData);
@@ -357,10 +394,14 @@ export default function QuotationGenerator() {
     const mainDate = event.mainEvent?.date || event.date;
     if (mainDate) msg += `*Event Date:* ${formatDateReadable(mainDate)}\n\n`;
     msg += `*Items:*\n`;
-    localItems.forEach((key, i) => {
-      const itemName = key.includes('::') ? key.split('::').slice(1).join('::') : key;
-      const p = itemPrices[key] || { qty: 1, rate: 0 };
-      msg += `${i + 1}. ${itemName} - Qty: ${p.qty} × ₹${p.rate} = ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+    let idx = 0;
+    printGroups.forEach(group => {
+      group.items.forEach(name => {
+        idx++;
+        const key = `${group.id}::${name}`;
+        const p = itemPrices[key] || { qty: 1, rate: 0 };
+        msg += `${idx}. ${name} - Qty: ${p.qty} × ₹${p.rate} = ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+      });
     });
     msg += `\n*Subtotal:* ${formatCurrency(subtotal)}`;
     if (gstEnabled) {
@@ -400,49 +441,160 @@ export default function QuotationGenerator() {
 
         {/* Items & Pricing Card */}
         <Card>
-          <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Items & Pricing</h3>
-          <div className="space-y-2">
-            {localItems.map(key => {
-              const itemName = key.includes('::') ? key.split('::').slice(1).join('::') : key;
-              const eventPrefix = key.includes('::') ? key.split('::')[0] : 'main';
-              const groupLabel = eventPrefix === 'main'
-                ? (event.mainEvent?.name || event.eventType || 'Main Event')
-                : ((event.subEvents || []).find(s => s.id === eventPrefix)?.name || 'Sub Event');
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-bb-muted uppercase">Items & Pricing</h3>
+            <div title={bundles.length > 0 ? 'Ungroup all bundles first to hide prices' : ''}>
+              <Toggle
+                label="Hide Prices"
+                checked={hidePrices}
+                disabled={bundles.length > 0}
+                onChange={e => setHidePrices(e.target.checked)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            {printGroups.map(group => {
+              const entries = buildLineEntries(group.id, group.items, bundles);
+              const entryIds = entries.map(en => en.type === 'bundle' ? `bundle:${en.bundle.id}` : en.key);
+              const selected = selectedForGroup[group.id] || new Set();
+
               return (
-                <div key={key} className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-bb-text truncate">{itemName}</p>
-                    {printGroups.length > 1 && (
-                      <p className="text-xs text-bb-muted truncate">{groupLabel}</p>
+                <div key={group.id}>
+                  {/* Section headline — separates Main Event from each Sub Event */}
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-bb-accent">
+                      {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}
+                    </p>
+                    {!hidePrices && selected.size >= 2 && (
+                      <Button size="sm" variant="outline" icon={Layers} onClick={() => openGroupModal(group.id)}>
+                        Create Group ({selected.size})
+                      </Button>
                     )}
                   </div>
-                  <input
-                    type="number" min="1" placeholder="Qty"
-                    value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
-                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
-                    className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
-                  />
-                  <span className="text-bb-muted text-sm">×</span>
-                  <input
-                    type="number" min="0" placeholder="Rate"
-                    value={itemPrices[key]?.rate || ''}
-                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
-                    className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
-                  />
-                  <button
-                    onClick={() => handleRemoveItem(key)}
-                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title="Remove item"
-                  >
-                    <X size={16} />
-                  </button>
+
+                  {hidePrices ? (
+                    // ---- Hide-prices mode: item name + quantity only, no rate/amount ----
+                    <div className="space-y-2">
+                      {group.items.map(name => {
+                        const key = `${group.id}::${name}`;
+                        return (
+                          <div key={key} className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
+                            <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{name}</p>
+                            <input
+                              type="number" min="1" placeholder="Qty"
+                              value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
+                              onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
+                              className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                            />
+                            <button
+                              onClick={() => handleRemoveItem(group.id, name)}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                              title="Remove item"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <Input
+                        label={`${group.name} — Final Amount (₹)`}
+                        type="number" min="0"
+                        value={finalAmounts[group.id] ?? ''}
+                        onChange={e => setFinalAmounts(f => ({ ...f, [group.id]: Number(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  ) : (
+                    // ---- Normal mode: itemized qty x rate, with drag-reorder and bundling ----
+                    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(group.id, entries)}>
+                      <SortableContext items={entryIds} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2">
+                          {entries.map(entry => {
+                            if (entry.type === 'bundle') {
+                              const b = entry.bundle;
+                              return (
+                                <SortableEntry key={`bundle:${b.id}`} id={`bundle:${b.id}`}>
+                                  <div className="p-2 bg-bb-accent/5 border border-bb-accent/30 rounded-lg space-y-1.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-sm font-semibold text-bb-text">{b.name}</span>
+                                      <button
+                                        onClick={() => handleUngroup(b.id)}
+                                        className="flex items-center gap-1 text-xs text-bb-muted hover:text-red-500 transition-colors cursor-pointer"
+                                        title="Ungroup"
+                                      >
+                                        <Ungroup size={14} /> Ungroup
+                                      </button>
+                                    </div>
+                                    <p className="text-xs text-bb-muted">
+                                      {b.itemKeys.map(k => k.split('::').slice(1).join('::')).join(', ')}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-bb-muted">Group Price ₹</span>
+                                      <input
+                                        type="number" min="0"
+                                        value={b.amount || ''}
+                                        onChange={e => setBundles(bs => bs.map(x => x.id === b.id ? { ...x, amount: Number(e.target.value) || 0 } : x))}
+                                        className="w-28 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                      />
+                                    </div>
+                                  </div>
+                                </SortableEntry>
+                              );
+                            }
+
+                            const { key, name } = entry;
+                            return (
+                              <SortableEntry key={key} id={key}>
+                                <div className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
+                                  <input
+                                    type="checkbox"
+                                    checked={selected.has(name)}
+                                    onChange={() => toggleSelectForGroup(group.id, name)}
+                                    className="w-4 h-4 accent-bb-accent shrink-0"
+                                    title="Select for grouping"
+                                  />
+                                  <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{name}</p>
+                                  <input
+                                    type="number" min="1" placeholder="Qty"
+                                    value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
+                                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
+                                    className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                                  />
+                                  <span className="text-bb-muted text-sm">×</span>
+                                  <input
+                                    type="number" min="0" placeholder="Rate"
+                                    value={itemPrices[key]?.rate || ''}
+                                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
+                                    className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                  />
+                                  <button
+                                    onClick={() => handleRemoveItem(group.id, name)}
+                                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                    title="Remove item"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              </SortableEntry>
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  )}
+
+                  {group.items.length === 0 && (
+                    <p className="text-sm text-bb-muted text-center py-3">No items in this section yet</p>
+                  )}
+
+                  {!hidePrices && (
+                    <p className="text-right text-sm font-semibold text-bb-text mt-2">
+                      Section Total: {formatCurrency(sectionTotals[group.id] || 0)}
+                    </p>
+                  )}
                 </div>
               );
             })}
-
-            {localItems.length === 0 && (
-              <p className="text-sm text-bb-muted text-center py-4">No items added yet</p>
-            )}
           </div>
 
           {/* Add Item Section */}
@@ -495,11 +647,41 @@ export default function QuotationGenerator() {
         </div>
       </div>
 
+      {/* Create Group Modal */}
+      <Modal isOpen={!!groupModalSection} onClose={() => setGroupModalSection(null)} title="Create Group" size="md">
+        {groupModalSection && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-bb-muted uppercase mb-1">Items in this group</p>
+              <p className="text-sm text-bb-text">
+                {Array.from(selectedForGroup[groupModalSection] || []).join(', ')}
+              </p>
+            </div>
+            <Input
+              label="Group Name"
+              placeholder="e.g. Stage Package"
+              value={groupName}
+              onChange={e => setGroupName(e.target.value)}
+            />
+            <Input
+              label="Group Price (₹)"
+              type="number" min="0"
+              value={groupAmount}
+              onChange={e => setGroupAmount(e.target.value)}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" onClick={() => setGroupModalSection(null)}>Cancel</Button>
+              <Button onClick={handleCreateGroup}>Create Group</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Category Selection Modal - Accordion style */}
       <Modal isOpen={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Add from Categories" size="lg">
         <div className="space-y-1 max-h-[60vh] overflow-y-auto">
           {categories.map(cat => {
-            const availableItems = (cat.items || []).filter(i => !localItems.includes(`main::${i}`));
+            const availableItems = (cat.items || []).filter(i => !(sectionItems.main || []).includes(i));
             const isExpanded = expandedCategories[cat.id];
             return (
               <div key={cat.id} className="border border-bb-border rounded-lg overflow-hidden">
@@ -589,14 +771,9 @@ export default function QuotationGenerator() {
               </td>
             </tr>
 
-            {/* Items grouped by Event */}
-            {printGroups.map((group) => {
-              const sectionSubtotal = group.items.reduce((sum, item) => {
-                const key = `${group.id}::${item}`;
-                const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
-                return sum + (p.qty * p.rate);
-              }, 0);
-
+            {/* Items grouped by Event — sections with no items are skipped here (they're just empty in the editor, not shown to the client) */}
+            {printGroups.filter(g => g.items.length > 0).map((group) => {
+              const entries = buildLineEntries(group.id, group.items, bundles);
               let slNo = 0;
 
               return (
@@ -616,31 +793,66 @@ export default function QuotationGenerator() {
                     <th style={{padding: '8px 12px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>Sl.</th>
                     <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Particulars</th>
                     <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>Qty</th>
-                    <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>Rate (₹)</th>
-                    <th style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>Amount (₹)</th>
+                    {!hidePrices && <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>Rate (₹)</th>}
+                    {!hidePrices && <th style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>Amount (₹)</th>}
                   </tr>
 
-                  {/* Item rows */}
-                  {group.items.map((item) => {
-                    slNo++;
-                    const key = `${group.id}::${item}`;
-                    const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
-                    return (
-                      <tr key={item} style={{borderBottom: '1px solid #f0f0f0'}}>
-                        <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
-                        <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{item}</td>
-                        <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
-                        <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>{formatCurrency(p.rate)}</td>
-                        <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(p.qty * p.rate)}</td>
-                      </tr>
-                    );
-                  })}
+                  {hidePrices ? (
+                    // ---- Hide-prices mode: item name + quantity only ----
+                    group.items.map((name) => {
+                      slNo++;
+                      const key = `${group.id}::${name}`;
+                      const p = itemPrices[key] || { qty: 1, rate: 0 };
+                      return (
+                        <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
+                          <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    // ---- Normal mode: standalone items priced individually, bundles as one grouped row ----
+                    entries.map((entry) => {
+                      if (entry.type === 'bundle') {
+                        const b = entry.bundle;
+                        const memberNames = b.itemKeys.map(k => k.split('::').slice(1).join('::'));
+                        slNo++;
+                        return (
+                          <tr key={`bundle:${b.id}`} style={{borderBottom: '1px solid #f0f0f0'}}>
+                            <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                            <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>
+                              <span style={{fontWeight: '600'}}>{b.name}</span>
+                              <br/><span style={{fontSize: '11px', color: '#6b7280'}}>{memberNames.join(', ')}</span>
+                            </td>
+                            <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>—</td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(b.amount)}</td>
+                          </tr>
+                        );
+                      }
+                      slNo++;
+                      const { key, name } = entry;
+                      const p = itemPrices[key] || { qty: 1, rate: 0 };
+                      return (
+                        <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
+                          <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                          <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>{formatCurrency(p.rate)}</td>
+                          <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(p.qty * p.rate)}</td>
+                        </tr>
+                      );
+                    })
+                  )}
 
-                  {/* Section subtotal row */}
+                  {/* Section subtotal row — for hide-prices mode this IS the manually-entered final amount */}
                   <tr>
                     <td colSpan="5" style={{textAlign: 'right', padding: '10px 24px 16px'}}>
-                      <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Subtotal</span>
-                      <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937'}}>{formatCurrency(sectionSubtotal)}</span>
+                      <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>
+                        {hidePrices ? 'Final Amount' : 'Subtotal'}
+                      </span>
+                      <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937'}}>{formatCurrency(sectionTotals[group.id] || 0)}</span>
                     </td>
                   </tr>
                 </React.Fragment>
@@ -648,7 +860,7 @@ export default function QuotationGenerator() {
             })}
 
             {/* Fallback if no items */}
-            {printGroups.length === 0 && (
+            {printGroups.every(g => g.items.length === 0) && (
               <tr>
                 <td colSpan="5" style={{textAlign: 'center', padding: '24px', color: '#6b7280', fontSize: '12px', fontStyle: 'italic'}}>
                   No items added to this quotation yet.
@@ -657,7 +869,7 @@ export default function QuotationGenerator() {
             )}
 
             {/* Summary section */}
-            {printGroups.length > 0 && (
+            {printGroups.some(g => g.items.length > 0) && (
               <>
                 <tr><td colSpan="5" style={{padding: '4px 0'}} /></tr>
 
@@ -668,19 +880,12 @@ export default function QuotationGenerator() {
                         <tr style={{backgroundColor: '#f5f0fa'}}>
                           <td colSpan="2" style={{padding: '8px 16px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>SUMMARY</td>
                         </tr>
-                        {printGroups.map((group) => {
-                          const sectionTotal = group.items.reduce((sum, item) => {
-                            const key = `${group.id}::${item}`;
-                            const p = itemPrices[key] || itemPrices[item] || { qty: 1, rate: 0 };
-                            return sum + (p.qty * p.rate);
-                          }, 0);
-                          return (
-                            <tr key={group.id} style={{borderBottom: '1px solid #f3f4f6'}}>
-                              <td style={{fontSize: '12px', color: '#4b5563', padding: '8px 16px'}}>{group.name}</td>
-                              <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(sectionTotal)}</td>
-                            </tr>
-                          );
-                        })}
+                        {printGroups.filter(g => g.items.length > 0).map((group) => (
+                          <tr key={group.id} style={{borderBottom: '1px solid #f3f4f6'}}>
+                            <td style={{fontSize: '12px', color: '#4b5563', padding: '8px 16px'}}>{group.name}</td>
+                            <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(sectionTotals[group.id] || 0)}</td>
+                          </tr>
+                        ))}
                         <tr style={{borderTop: '1px solid #e5e7eb'}}>
                           <td style={{fontSize: '12px', color: '#6b7280', padding: '8px 16px'}}>Subtotal</td>
                           <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(subtotal)}</td>

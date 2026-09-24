@@ -22,7 +22,7 @@ import Input from '../components/Input';
 import Select from '../components/Select';
 import Toggle from '../components/Toggle';
 import Card from '../components/Card';
-import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink } from '../utils/helpers';
+import { formatCurrency, formatDateReadable, calcGST, roundOff, genInvoiceNo, waLink, buildLineEntries, computeSectionTotal } from '../utils/helpers';
 import { DEFAULT_SAC_CODE } from '../constants/data';
 import { ArrowLeft, Printer, MessageSquare, Save } from 'lucide-react';
 
@@ -233,18 +233,25 @@ export default function BillGenerator() {
 
   // Get items and groups (backward compatible)
   const { allItems, eventGroups } = useMemo(() => event ? getEventItemsData(event) : { allItems: [], eventGroups: [] }, [event]);
-  const storedPrices = event?.itemPrices || {};
+  const storedPrices = useMemo(() => event?.itemPrices || {}, [event]);
+  const bundles = useMemo(() => event?.bundles || [], [event]);
+  const hidePrices = event?.hidePrices || false;
+  const finalAmounts = useMemo(() => event?.finalAmounts || {}, [event]);
 
-  // Calculate subtotal from all item prices using eventId::itemName keys with fallback
-  const subtotal = useMemo(() => {
-    return eventGroups.reduce((total, group) => {
-      return total + group.items.reduce((s, item) => {
-        const key = `${group.id}::${item}`;
-        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
-        return s + (p.qty * p.rate);
-      }, 0);
-    }, 0);
-  }, [eventGroups, event]);
+  // Each section's total (respecting hide-prices/bundles — see utils/helpers.js),
+  // and their sum as the bill's subtotal.
+  const sectionTotals = useMemo(() => {
+    const totals = {};
+    eventGroups.forEach(g => {
+      totals[g.id] = computeSectionTotal(g.id, g.items, storedPrices, bundles, hidePrices, finalAmounts);
+    });
+    return totals;
+  }, [eventGroups, storedPrices, bundles, hidePrices, finalAmounts]);
+
+  const subtotal = useMemo(
+    () => Object.values(sectionTotals).reduce((s, v) => s + v, 0),
+    [sectionTotals]
+  );
 
   // Apply discount then calculate GST
   const afterDiscount = subtotal - (Number(discount) || 0);
@@ -281,12 +288,26 @@ export default function BillGenerator() {
     msg += `*Items:*\n`;
     let idx = 0;
     eventGroups.forEach(group => {
-      group.items.forEach(item => {
-        idx++;
-        const key = `${group.id}::${item}`;
-        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
-        msg += `${idx}. ${item} - ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
-      });
+      if (hidePrices) {
+        group.items.forEach(name => {
+          idx++;
+          const key = `${group.id}::${name}`;
+          const p = storedPrices[key] || { qty: 1, rate: 0 };
+          msg += `${idx}. ${name} (Qty: ${p.qty})\n`;
+        });
+        msg += `   ${group.name} — Final Amount: ${formatCurrency(sectionTotals[group.id] || 0)}\n`;
+      } else {
+        buildLineEntries(group.id, group.items, bundles).forEach(entry => {
+          idx++;
+          if (entry.type === 'bundle') {
+            const memberNames = entry.bundle.itemKeys.map(k => k.split('::').slice(1).join('::'));
+            msg += `${idx}. ${entry.bundle.name} (${memberNames.join(', ')}) - ₹${(entry.bundle.amount || 0).toLocaleString('en-IN')}\n`;
+          } else {
+            const p = storedPrices[entry.key] || { qty: 1, rate: 0 };
+            msg += `${idx}. ${entry.name} - ₹${(p.qty * p.rate).toLocaleString('en-IN')}\n`;
+          }
+        });
+      }
     });
     msg += `\nSubtotal: ${formatCurrency(subtotal)}`;
     if (discount > 0) msg += `\nDiscount: -${formatCurrency(discount)}`;
@@ -412,28 +433,21 @@ export default function BillGenerator() {
             {/* Row 5: Spacer */}
             <tr><td colSpan="6" style={{padding: '6px 0'}} /></tr>
 
-            {/* Items grouped by Event */}
-            {eventGroups.map((group) => {
+            {/* Items grouped by Event — sections with no items are skipped (empty sections aren't shown to the client) */}
+            {eventGroups.filter(g => g.items.length > 0).map((group) => {
               let slNo = 0;
-              const groupSubtotal = group.items.reduce((sum, item) => {
-                const key = `${group.id}::${item}`;
-                const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
-                return sum + (p.qty * p.rate);
-              }, 0);
 
               return (
                 <React.Fragment key={group.id}>
-                  {/* Event group header (only if multiple groups) */}
-                  {eventGroups.length > 1 && (
-                    <tr>
-                      <td colSpan="6" style={{padding: '12px 24px 6px'}}>
-                        <span style={{fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90'}}>
-                          {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
-                        </span>
-                        <div style={{height: '2px', marginTop: '6px', backgroundColor: '#652D90', opacity: 0.3, borderRadius: '1px'}} />
-                      </td>
-                    </tr>
-                  )}
+                  {/* Event group header — always shown, not just when there are multiple groups, so each event date is clearly labeled */}
+                  <tr>
+                    <td colSpan="6" style={{padding: '12px 24px 6px'}}>
+                      <span style={{fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#652D90'}}>
+                        {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}{group.location ? `, ${group.location}` : ''}
+                      </span>
+                      <div style={{height: '2px', marginTop: '6px', backgroundColor: '#652D90', opacity: 0.3, borderRadius: '1px'}} />
+                    </td>
+                  </tr>
 
                   {/* Row 6: Table headers */}
                   <tr style={{backgroundColor: '#f5f0fa'}}>
@@ -441,36 +455,71 @@ export default function BillGenerator() {
                     <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>SAC CODE</th>
                     <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>DESCRIPTION</th>
                     <th style={{padding: '8px 8px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>QTY</th>
-                    <th style={{padding: '8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>PRICE</th>
-                    <th style={{padding: '8px 8px 8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>AMOUNT</th>
+                    {!hidePrices && <th style={{padding: '8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>PRICE</th>}
+                    {!hidePrices && <th style={{padding: '8px 8px 8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>AMOUNT</th>}
                   </tr>
 
-                  {/* Item rows */}
-                  {group.items.map((item) => {
-                    slNo++;
-                    const key = `${group.id}::${item}`;
-                    const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
-                    return (
-                      <tr key={item} style={{borderBottom: '1px solid #f0f0f0'}}>
-                        <td style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
-                        <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
-                        <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>{item}</td>
-                        <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
-                        <td style={{padding: '10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>{formatCurrency(p.rate)}</td>
-                        <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(p.qty * p.rate)}</td>
-                      </tr>
-                    );
-                  })}
-
-                  {/* Group subtotal (only if multiple groups) */}
-                  {eventGroups.length > 1 && (
-                    <tr>
-                      <td colSpan="6" style={{textAlign: 'right', padding: '10px 24px 16px'}}>
-                        <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>Subtotal</span>
-                        <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937'}}>{formatCurrency(groupSubtotal)}</span>
-                      </td>
-                    </tr>
+                  {hidePrices ? (
+                    // ---- Hide-prices mode: item name + quantity only, no price/amount columns ----
+                    group.items.map((name) => {
+                      slNo++;
+                      const key = `${group.id}::${name}`;
+                      const p = storedPrices[key] || { qty: 1, rate: 0 };
+                      return (
+                        <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
+                          <td style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                          <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    // ---- Normal mode: standalone items priced individually, bundles as one grouped row ----
+                    buildLineEntries(group.id, group.items, bundles).map((entry) => {
+                      if (entry.type === 'bundle') {
+                        const b = entry.bundle;
+                        const memberNames = b.itemKeys.map(k => k.split('::').slice(1).join('::'));
+                        slNo++;
+                        return (
+                          <tr key={`bundle:${b.id}`} style={{borderBottom: '1px solid #f0f0f0'}}>
+                            <td style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                            <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                            <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>
+                              <span style={{fontWeight: '600'}}>{b.name}</span>
+                              <br/><span style={{fontSize: '11px', color: '#6b7280'}}>{memberNames.join(', ')}</span>
+                            </td>
+                            <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>—</td>
+                            <td style={{padding: '10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>
+                            <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(b.amount)}</td>
+                          </tr>
+                        );
+                      }
+                      slNo++;
+                      const { key, name } = entry;
+                      const p = storedPrices[key] || { qty: 1, rate: 0 };
+                      return (
+                        <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
+                          <td style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                          <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                          <td style={{padding: '10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>{formatCurrency(p.rate)}</td>
+                          <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(p.qty * p.rate)}</td>
+                        </tr>
+                      );
+                    })
                   )}
+
+                  {/* Group subtotal — always shown now (for hide-prices mode, this IS the manually-entered final amount) */}
+                  <tr>
+                    <td colSpan="6" style={{textAlign: 'right', padding: '10px 24px 16px'}}>
+                      <span style={{fontSize: '11px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginRight: '16px'}}>
+                        {hidePrices ? 'Final Amount' : 'Subtotal'}
+                      </span>
+                      <span style={{fontSize: '14px', fontWeight: '700', color: '#1f2937'}}>{formatCurrency(sectionTotals[group.id] || 0)}</span>
+                    </td>
+                  </tr>
                 </React.Fragment>
               );
             })}
@@ -486,19 +535,12 @@ export default function BillGenerator() {
                     <tr style={{backgroundColor: '#f5f0fa'}}>
                       <td colSpan="2" style={{padding: '8px 16px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#652D90'}}>SUMMARY</td>
                     </tr>
-                    {eventGroups.map((group) => {
-                      const groupTotal = group.items.reduce((sum, item) => {
-                        const key = `${group.id}::${item}`;
-                        const p = storedPrices[key] || storedPrices[item] || { qty: 1, rate: 0 };
-                        return sum + (p.qty * p.rate);
-                      }, 0);
-                      return (
-                        <tr key={group.id} style={{borderBottom: '1px solid #f3f4f6'}}>
-                          <td style={{fontSize: '12px', color: '#4b5563', padding: '8px 16px'}}>{group.name}</td>
-                          <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(groupTotal)}</td>
-                        </tr>
-                      );
-                    })}
+                    {eventGroups.filter(g => g.items.length > 0).map((group) => (
+                      <tr key={group.id} style={{borderBottom: '1px solid #f3f4f6'}}>
+                        <td style={{fontSize: '12px', color: '#4b5563', padding: '8px 16px'}}>{group.name}</td>
+                        <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(sectionTotals[group.id] || 0)}</td>
+                      </tr>
+                    ))}
                     <tr style={{borderTop: '1px solid #e5e7eb'}}>
                       <td style={{fontSize: '12px', color: '#6b7280', padding: '8px 16px'}}>Sub Total</td>
                       <td style={{fontSize: '12px', color: '#1f2937', fontWeight: '500', textAlign: 'right', padding: '8px 16px'}}>{formatCurrency(subtotal)}</td>

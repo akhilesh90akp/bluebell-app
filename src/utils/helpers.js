@@ -221,3 +221,85 @@ export const sortByActiveDate = (events) => {
     return diffA >= 0 ? -1 : 1;
   });
 };
+
+// ============================================================
+// PRICING — BUNDLES & HIDE-PRICES MODE
+//
+// Shared by QuotationGenerator (editing) and BillGenerator (read-only
+// rendering) so both always agree on how a section's items/bundles are
+// grouped, ordered, and totaled.
+// ============================================================
+
+/**
+ * Builds the ordered list of "line entries" for one section (main event
+ * or a specific sub-event), given that section's item names in their
+ * saved order and the event's bundles. A bundle occupies one entry at
+ * the position of its first member's name in `itemNames` — subsequent
+ * member names are absorbed into that same entry, not shown again.
+ * @param {string} sectionId - 'main' or a sub-event's id
+ * @param {string[]} itemNames - item names in this section, in saved order
+ * @param {Array} bundles - event.bundles
+ * @returns {Array} entries: { type: 'item', key, name } | { type: 'bundle', bundle }
+ */
+export const buildLineEntries = (sectionId, itemNames, bundles) => {
+  const seen = new Set();
+  const entries = [];
+  (itemNames || []).forEach(name => {
+    const key = `${sectionId}::${name}`;
+    if (seen.has(key)) return;
+    const bundle = (bundles || []).find(b => b.itemKeys.includes(key));
+    if (bundle) {
+      entries.push({ type: 'bundle', bundle });
+      bundle.itemKeys.forEach(k => seen.add(k));
+    } else {
+      entries.push({ type: 'item', key, name });
+      seen.add(key);
+    }
+  });
+  return entries;
+};
+
+/**
+ * Flattens a (possibly reordered) list of line entries back into a plain
+ * item-name array — the shape actually persisted on mainEvent.items /
+ * subEvent.items. Used after a drag-reorder, which reorders entries
+ * (each bundle moving as one block), to get back the flat name order.
+ * @param {Array} entries - as returned by buildLineEntries
+ * @param {string} sectionId - 'main' or a sub-event's id, to strip from bundle keys
+ * @returns {string[]} item names in the new order
+ */
+export const flattenLineEntries = (entries, sectionId) => {
+  const names = [];
+  entries.forEach(entry => {
+    if (entry.type === 'item') {
+      names.push(entry.name);
+    } else {
+      entry.bundle.itemKeys
+        .filter(k => k.startsWith(`${sectionId}::`))
+        .forEach(k => names.push(k.slice(sectionId.length + 2)));
+    }
+  });
+  return names;
+};
+
+/**
+ * Computes one section's total, respecting hide-prices mode (a single
+ * manually-entered final amount replaces itemized pricing) and bundles
+ * (contribute their own fixed amount rather than qty * rate per member).
+ * @param {string} sectionId - 'main' or a sub-event's id
+ * @param {string[]} itemNames - item names in this section
+ * @param {Object} itemPrices - the event's itemPrices map ({qty, rate} per key)
+ * @param {Array} bundles - event.bundles
+ * @param {boolean} hidePrices - event.hidePrices
+ * @param {Object} finalAmounts - event.finalAmounts ({ [sectionId]: number })
+ * @returns {number}
+ */
+export const computeSectionTotal = (sectionId, itemNames, itemPrices, bundles, hidePrices, finalAmounts) => {
+  if (hidePrices) return Number((finalAmounts || {})[sectionId]) || 0;
+  const entries = buildLineEntries(sectionId, itemNames, bundles);
+  return entries.reduce((sum, entry) => {
+    if (entry.type === 'bundle') return sum + (Number(entry.bundle.amount) || 0);
+    const p = (itemPrices || {})[entry.key] || { qty: 1, rate: 0 };
+    return sum + (Number(p.qty) || 0) * (Number(p.rate) || 0);
+  }, 0);
+};
