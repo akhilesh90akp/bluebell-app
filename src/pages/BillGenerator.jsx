@@ -476,10 +476,33 @@ export default function BillGenerator() {
                   )}
 
                   {hidePrices ? (
-                    // ---- Hide-prices mode: item name + quantity only, redistributed across the same 6 columns (see header comment above) ----
-                    group.items.map((name) => {
+                    // ---- Hide-prices mode: bundle-aware, item name + quantity only, redistributed across the same 6 columns (see header comment above) ----
+                    buildLineEntries(group.id, group.items, bundles).map((entry) => {
+                      if (entry.type === 'bundle') {
+                        const b = entry.bundle;
+                        const memberNames = b.itemKeys.map(k => k.split('::').slice(1).join('::'));
+                        slNo++;
+                        return (
+                          <tr key={`bundle:${b.id}`} style={{borderBottom: '1px solid #f0f0f0'}}>
+                            <td colSpan="1" style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                            <td colSpan="1" style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                            <td colSpan="2" style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>
+                              <span style={{fontWeight: '600'}}>{b.name}</span>
+                              {memberNames.map((mn, i) => (
+                                <div key={i} style={{fontSize: '12px', color: '#1f2937', marginTop: '2px'}}>{mn}</div>
+                              ))}
+                            </td>
+                            <td colSpan="2" style={{padding: '10px 8px 10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px', paddingRight: '24px'}}>
+                              <div style={{visibility: 'hidden', fontWeight: '600'}}>&nbsp;</div>
+                              {b.itemKeys.map((k, i) => (
+                                <div key={i} style={{marginTop: i === 0 ? 0 : '2px'}}>{(storedPrices[k] || { qty: 1 }).qty}</div>
+                              ))}
+                            </td>
+                          </tr>
+                        );
+                      }
                       slNo++;
-                      const key = `${group.id}::${name}`;
+                      const { key, name } = entry;
                       const p = storedPrices[key] || { qty: 1, rate: 0 };
                       return (
                         <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
@@ -507,7 +530,12 @@ export default function BillGenerator() {
                                 <div key={i} style={{fontSize: '12px', color: '#1f2937', marginTop: '2px'}}>{mn}</div>
                               ))}
                             </td>
-                            <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>—</td>
+                            <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>
+                              <div style={{visibility: 'hidden'}}>&nbsp;</div>
+                              {b.itemKeys.map((k, i) => (
+                                <div key={i} style={{marginTop: i === 0 ? 0 : '2px'}}>{(storedPrices[k] || { qty: 1 }).qty}</div>
+                              ))}
+                            </td>
                             <td style={{padding: '10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>
                             <td style={{padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(b.amount)}</td>
                           </tr>
