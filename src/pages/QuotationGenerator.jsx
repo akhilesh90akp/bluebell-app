@@ -142,9 +142,12 @@ export default function QuotationGenerator() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Bundle creation: which items are checkbox-selected per section, and
-  // the section currently showing the "Create Group" popup (null = closed)
+  // Bundle creation: which standalone (not-yet-bundled) items are
+  // checkbox-selected per section — used to enable the top "Group" button.
   const [selectedForGroup, setSelectedForGroup] = useState({}); // { [sectionId]: Set<name> }
+  // Which existing bundles are checkbox-selected (via their header checkbox)
+  // — used to enable the top "Ungroup" button.
+  const [selectedBundles, setSelectedBundles] = useState(new Set());
   const [groupModalSection, setGroupModalSection] = useState(null);
   const [groupName, setGroupName] = useState('');
   const [groupAmount, setGroupAmount] = useState('');
@@ -236,6 +239,19 @@ export default function QuotationGenerator() {
   // Calculate GST breakdown
   const gstData = useMemo(() => calcGST(subtotal, gstEnabled ? Number(gstRate) : 0), [subtotal, gstEnabled, gstRate]);
 
+  // Whether the top "Group" button should be enabled: 2+ standalone items
+  // selected, all within the same section (a bundle can't span sections).
+  const groupSections = useMemo(
+    () => Object.entries(selectedForGroup).filter(([, set]) => set.size > 0).map(([id]) => id),
+    [selectedForGroup]
+  );
+  const groupSectionId = groupSections.length === 1 ? groupSections[0] : null;
+  const canGroup = !!groupSectionId && (selectedForGroup[groupSectionId]?.size || 0) >= 2;
+
+  // Whether the top "Ungroup" button should be enabled: any bundle checked
+  // via its header checkbox.
+  const canUngroup = selectedBundles.size > 0;
+
   if (!event) {
     return (
       <div className="text-center py-12">
@@ -305,7 +321,7 @@ export default function QuotationGenerator() {
   // EVENT HANDLERS — BUNDLES (CREATE GROUP / UNGROUP)
   // ------------------------------------------------------------
 
-  /** Toggles one item's checkbox selection for grouping, within a given section. */
+  /** Toggles one standalone item's checkbox selection, within a given section — feeds the top "Group" button. */
   const toggleSelectForGroup = (sectionId, name) => {
     setSelectedForGroup(prev => {
       const current = new Set(prev[sectionId] || []);
@@ -314,14 +330,23 @@ export default function QuotationGenerator() {
     });
   };
 
-  /** Opens the "Create Group" popup for whichever section currently has 2+ items selected. */
+  /** Toggles one existing bundle's header checkbox — feeds the top "Ungroup" button. */
+  const toggleSelectBundle = (bundleId) => {
+    setSelectedBundles(prev => {
+      const next = new Set(prev);
+      if (next.has(bundleId)) next.delete(bundleId); else next.add(bundleId);
+      return next;
+    });
+  };
+
+  /** Opens the "Create Group" popup for whichever section currently has 2+ standalone items selected. */
   const openGroupModal = (sectionId) => {
     setGroupModalSection(sectionId);
     setGroupName('');
     setGroupAmount('');
   };
 
-  /** Confirms bundle creation: groups the selected items under one shared price and clears their individual selection/prices. */
+  /** Confirms bundle creation: groups the selected items under one shared price and clears their individual selection. */
   const handleCreateGroup = () => {
     const sectionId = groupModalSection;
     const names = Array.from(selectedForGroup[sectionId] || []);
@@ -338,9 +363,26 @@ export default function QuotationGenerator() {
     setGroupModalSection(null);
   };
 
-  /** Dissolves a bundle — its member items return to being normal, individually-priced items (starting at ₹0, since the bundle price doesn't split automatically). */
-  const handleUngroup = (bundleId) => {
-    setBundles(bs => bs.filter(b => b.id !== bundleId));
+  /** Dissolves every bundle currently selected via its header checkbox — members return to being normal, individually-priced items. */
+  const handleUngroupSelected = () => {
+    setBundles(bs => bs.filter(b => !selectedBundles.has(b.id)));
+    setSelectedBundles(new Set());
+  };
+
+  /**
+   * Updates one bundle member's qty/rate, then re-syncs the bundle's total
+   * amount to the sum of all its members' qty * rate — this is what lets
+   * filling in member prices "calculate and give the final group price"
+   * automatically, without a separate recalculate step.
+   */
+  const updateBundleMemberPrice = (bundle, key, field, value) => {
+    const nextPrices = { ...itemPrices, [key]: { ...itemPrices[key], [field]: value } };
+    setItemPrices(nextPrices);
+    const sum = bundle.itemKeys.reduce((s, k) => {
+      const p = nextPrices[k] || { qty: 1, rate: 0 };
+      return s + (Number(p.qty) || 0) * (Number(p.rate) || 0);
+    }, 0);
+    setBundles(bs => bs.map(b => b.id === bundle.id ? { ...b, amount: sum } : b));
   };
 
   // ------------------------------------------------------------
@@ -441,13 +483,26 @@ export default function QuotationGenerator() {
 
         {/* Items & Pricing Card */}
         <Card>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-sm font-semibold text-bb-muted uppercase">Items & Pricing</h3>
-            <div title={bundles.length > 0 ? 'Ungroup all bundles first to hide prices' : ''}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                size="sm" variant="outline" icon={Layers}
+                disabled={!canGroup}
+                onClick={() => canGroup && openGroupModal(groupSectionId)}
+              >
+                Group
+              </Button>
+              <Button
+                size="sm" variant="outline" icon={Ungroup}
+                disabled={!canUngroup}
+                onClick={handleUngroupSelected}
+              >
+                Ungroup
+              </Button>
               <Toggle
                 label="Hide Prices"
                 checked={hidePrices}
-                disabled={bundles.length > 0}
                 onChange={e => setHidePrices(e.target.checked)}
               />
             </div>
@@ -462,16 +517,9 @@ export default function QuotationGenerator() {
               return (
                 <div key={group.id}>
                   {/* Section headline — separates Main Event from each Sub Event */}
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold uppercase tracking-wide text-bb-accent">
-                      {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}
-                    </p>
-                    {!hidePrices && selected.size >= 2 && (
-                      <Button size="sm" variant="outline" icon={Layers} onClick={() => openGroupModal(group.id)}>
-                        Create Group ({selected.size})
-                      </Button>
-                    )}
-                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-bb-accent mb-2">
+                    {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}
+                  </p>
 
                   {hidePrices ? (
                     // ---- Hide-prices mode: item name + quantity only, no rate/amount ----
@@ -514,27 +562,52 @@ export default function QuotationGenerator() {
                               const b = entry.bundle;
                               return (
                                 <SortableEntry key={`bundle:${b.id}`} id={`bundle:${b.id}`}>
-                                  <div className="p-2 bg-bb-accent/5 border border-bb-accent/30 rounded-lg space-y-1.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-sm font-semibold text-bb-text">{b.name}</span>
-                                      <button
-                                        onClick={() => handleUngroup(b.id)}
-                                        className="flex items-center gap-1 text-xs text-bb-muted hover:text-red-500 transition-colors cursor-pointer"
-                                        title="Ungroup"
-                                      >
-                                        <Ungroup size={14} /> Ungroup
-                                      </button>
-                                    </div>
-                                    <p className="text-xs text-bb-muted">
-                                      {b.itemKeys.map(k => k.split('::').slice(1).join('::')).join(', ')}
-                                    </p>
+                                  <div className="p-2 bg-bb-accent/5 border border-bb-accent/30 rounded-lg space-y-2">
+                                    {/* Header: checkbox selects the whole bundle for Ungroup */}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs text-bb-muted">Group Price ₹</span>
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedBundles.has(b.id)}
+                                        onChange={() => toggleSelectBundle(b.id)}
+                                        className="w-4 h-4 accent-bb-accent shrink-0"
+                                        title="Select this group to ungroup"
+                                      />
+                                      <span className="text-sm font-semibold text-bb-text">{b.name}</span>
+                                    </div>
+                                    {/* Member rows — same layout/font size as standalone items below, one per line, qty/rate optional */}
+                                    <div className="space-y-1.5 pl-6">
+                                      {b.itemKeys.map(k => {
+                                        const memberName = k.split('::').slice(1).join('::');
+                                        const p = itemPrices[k] || { qty: 1, rate: 0 };
+                                        return (
+                                          <div key={k} className="flex items-center gap-2">
+                                            <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{memberName}</p>
+                                            <input
+                                              type="number" min="1" placeholder="Qty"
+                                              value={p.qty === '' ? '' : (p.qty || 1)}
+                                              onChange={e => updateBundleMemberPrice(b, k, 'qty', e.target.value === '' ? '' : Number(e.target.value))}
+                                              className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                                            />
+                                            <span className="text-bb-muted text-sm">×</span>
+                                            <input
+                                              type="number" min="0" placeholder="Rate"
+                                              value={p.rate || ''}
+                                              onChange={e => updateBundleMemberPrice(b, k, 'rate', Number(e.target.value) || 0)}
+                                              className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {/* Total Group Price — auto-fills from the member qty x rate sum above whenever those change, but stays a plain editable field so you can just type a total directly instead */}
+                                    <div className="flex items-center gap-2 pt-1.5 border-t border-bb-accent/20">
+                                      <span className="text-xs font-semibold text-bb-muted uppercase flex-1">Total Group Price</span>
+                                      <span className="text-bb-muted text-sm">₹</span>
                                       <input
                                         type="number" min="0"
                                         value={b.amount || ''}
                                         onChange={e => setBundles(bs => bs.map(x => x.id === b.id ? { ...x, amount: Number(e.target.value) || 0 } : x))}
-                                        className="w-28 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                        className="w-28 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm font-semibold text-bb-text text-right"
                                       />
                                     </div>
                                   </div>
@@ -788,26 +861,39 @@ export default function QuotationGenerator() {
                     </td>
                   </tr>
 
-                  {/* Row 6: Table column headers */}
-                  <tr style={{backgroundColor: '#f5f0fa'}}>
-                    <th style={{padding: '8px 12px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>Sl.</th>
-                    <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Particulars</th>
-                    <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>Qty</th>
-                    {!hidePrices && <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>Rate (₹)</th>}
-                    {!hidePrices && <th style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>Amount (₹)</th>}
-                  </tr>
+                  {/* Row 6: Table column headers.
+                      Hide-prices mode uses the same 5 logical columns but
+                      redistributes them: Particulars stretches across the
+                      old Particulars+Qty+Rate slots, and Qty moves to sit
+                      at the true right edge (the old Amount slot) instead
+                      of leaving two empty columns after it. */}
+                  {hidePrices ? (
+                    <tr style={{backgroundColor: '#f5f0fa'}}>
+                      <th colSpan="1" style={{padding: '8px 12px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>Sl.</th>
+                      <th colSpan="3" style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Particulars</th>
+                      <th colSpan="1" style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px', paddingRight: '24px'}}>Qty</th>
+                    </tr>
+                  ) : (
+                    <tr style={{backgroundColor: '#f5f0fa'}}>
+                      <th style={{padding: '8px 12px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>Sl.</th>
+                      <th style={{padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Particulars</th>
+                      <th style={{padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>Qty</th>
+                      <th style={{padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>Rate (₹)</th>
+                      <th style={{padding: '8px 12px 8px 12px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>Amount (₹)</th>
+                    </tr>
+                  )}
 
                   {hidePrices ? (
-                    // ---- Hide-prices mode: item name + quantity only ----
+                    // ---- Hide-prices mode: item name + quantity only, redistributed across the same 5 columns (see header comment above) ----
                     group.items.map((name) => {
                       slNo++;
                       const key = `${group.id}::${name}`;
                       const p = itemPrices[key] || { qty: 1, rate: 0 };
                       return (
                         <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
-                          <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
-                          <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
-                          <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                          <td colSpan="1" style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td colSpan="3" style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td colSpan="1" style={{padding: '10px 12px 10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px', paddingRight: '24px'}}>{p.qty}</td>
                         </tr>
                       );
                     })

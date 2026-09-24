@@ -449,28 +449,44 @@ export default function BillGenerator() {
                     </td>
                   </tr>
 
-                  {/* Row 6: Table headers */}
-                  <tr style={{backgroundColor: '#f5f0fa'}}>
-                    <th style={{padding: '8px 8px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>No.</th>
-                    <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>SAC CODE</th>
-                    <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>DESCRIPTION</th>
-                    <th style={{padding: '8px 8px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>QTY</th>
-                    {!hidePrices && <th style={{padding: '8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>PRICE</th>}
-                    {!hidePrices && <th style={{padding: '8px 8px 8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>AMOUNT</th>}
-                  </tr>
+                  {/* Row 6: Table headers.
+                      Hide-prices mode uses the same 6 logical columns but
+                      redistributes them: DESCRIPTION stretches across its
+                      own + the old PRICE slot, and QTY moves to sit at the
+                      true right edge (its own + the old AMOUNT slot)
+                      instead of leaving two empty columns after it. SAC
+                      CODE stays visible since it's a regulatory code, not
+                      a price. */}
+                  {hidePrices ? (
+                    <tr style={{backgroundColor: '#f5f0fa'}}>
+                      <th colSpan="1" style={{padding: '8px 8px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>No.</th>
+                      <th colSpan="1" style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>SAC CODE</th>
+                      <th colSpan="2" style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>DESCRIPTION</th>
+                      <th colSpan="2" style={{padding: '8px 8px 8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '150px', paddingRight: '24px'}}>QTY</th>
+                    </tr>
+                  ) : (
+                    <tr style={{backgroundColor: '#f5f0fa'}}>
+                      <th style={{padding: '8px 8px 8px 24px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px'}}>No.</th>
+                      <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>SAC CODE</th>
+                      <th style={{padding: '8px 8px', textAlign: 'left', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>DESCRIPTION</th>
+                      <th style={{padding: '8px 8px', textAlign: 'center', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '50px'}}>QTY</th>
+                      <th style={{padding: '8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px'}}>PRICE</th>
+                      <th style={{padding: '8px 8px 8px 8px', textAlign: 'right', fontWeight: '600', color: '#4b5563', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px', paddingRight: '24px'}}>AMOUNT</th>
+                    </tr>
+                  )}
 
                   {hidePrices ? (
-                    // ---- Hide-prices mode: item name + quantity only, no price/amount columns ----
+                    // ---- Hide-prices mode: item name + quantity only, redistributed across the same 6 columns (see header comment above) ----
                     group.items.map((name) => {
                       slNo++;
                       const key = `${group.id}::${name}`;
                       const p = storedPrices[key] || { qty: 1, rate: 0 };
                       return (
                         <tr key={key} style={{borderBottom: '1px solid #f0f0f0'}}>
-                          <td style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
-                          <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
-                          <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
-                          <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>{p.qty}</td>
+                          <td colSpan="1" style={{padding: '10px 8px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
+                          <td colSpan="1" style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
+                          <td colSpan="2" style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>{name}</td>
+                          <td colSpan="2" style={{padding: '10px 8px 10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px', paddingRight: '24px'}}>{p.qty}</td>
                         </tr>
                       );
                     })
