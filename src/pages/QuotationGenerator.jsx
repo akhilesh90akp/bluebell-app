@@ -932,8 +932,17 @@ export default function QuotationGenerator() {
                                 <div key={i} style={{marginTop: i === 0 ? 0 : '2px'}}>{(itemPrices[k] || { qty: 1 }).qty}</div>
                               ))}
                             </td>
-                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>
-                            <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>{formatCurrency(b.amount)}</td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>
+                              <div style={{visibility: 'hidden'}}>&nbsp;</div>
+                              {b.itemKeys.map((k, i) => {
+                                const rate = (itemPrices[k] || { rate: 0 }).rate;
+                                return <div key={i} style={{marginTop: i === 0 ? 0 : '2px'}}>{rate > 0 ? formatCurrency(rate) : '—'}</div>;
+                              })}
+                            </td>
+                            <td style={{padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#1f2937', fontSize: '12px', paddingRight: '24px'}}>
+                              <div style={{visibility: 'hidden'}}>&nbsp;</div>
+                              {formatCurrency(b.amount)}
+                            </td>
                           </tr>
                         );
                       }
