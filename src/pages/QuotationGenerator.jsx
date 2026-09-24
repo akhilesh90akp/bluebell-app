@@ -521,85 +521,61 @@ export default function QuotationGenerator() {
                     {group.name}{group.date ? ` — ${formatDateReadable(group.date)}` : ''}
                   </p>
 
-                  {hidePrices ? (
-                    // ---- Hide-prices mode: item name + quantity only, no rate/amount ----
-                    <div className="space-y-2">
-                      {group.items.map(name => {
-                        const key = `${group.id}::${name}`;
-                        return (
-                          <div key={key} className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
-                            <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{name}</p>
-                            <input
-                              type="number" min="1" placeholder="Qty"
-                              value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
-                              onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
-                              className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
-                            />
-                            <button
-                              onClick={() => handleRemoveItem(group.id, name)}
-                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                              title="Remove item"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                      <Input
-                        label={`${group.name} — Final Amount (₹)`}
-                        type="number" min="0"
-                        value={finalAmounts[group.id] ?? ''}
-                        onChange={e => setFinalAmounts(f => ({ ...f, [group.id]: Number(e.target.value) || 0 }))}
-                      />
-                    </div>
-                  ) : (
-                    // ---- Normal mode: itemized qty x rate, with drag-reorder and bundling ----
-                    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(group.id, entries)}>
-                      <SortableContext items={entryIds} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-2">
-                          {entries.map(entry => {
-                            if (entry.type === 'bundle') {
-                              const b = entry.bundle;
-                              return (
-                                <SortableEntry key={`bundle:${b.id}`} id={`bundle:${b.id}`}>
-                                  <div className="p-2 bg-bb-accent/5 border border-bb-accent/30 rounded-lg space-y-2">
-                                    {/* Header: checkbox selects the whole bundle for Ungroup */}
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedBundles.has(b.id)}
-                                        onChange={() => toggleSelectBundle(b.id)}
-                                        className="w-4 h-4 accent-bb-accent shrink-0"
-                                        title="Select this group to ungroup"
-                                      />
-                                      <span className="text-sm font-semibold text-bb-text">{b.name}</span>
-                                    </div>
-                                    {/* Member rows — same layout/font size as standalone items below, one per line, qty/rate optional */}
-                                    <div className="space-y-1.5 pl-6">
-                                      {b.itemKeys.map(k => {
-                                        const memberName = k.split('::').slice(1).join('::');
-                                        const p = itemPrices[k] || { qty: 1, rate: 0 };
-                                        return (
-                                          <div key={k} className="flex items-center gap-2">
-                                            <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{memberName}</p>
-                                            <input
-                                              type="number" min="1" placeholder="Qty"
-                                              value={p.qty === '' ? '' : (p.qty || 1)}
-                                              onChange={e => updateBundleMemberPrice(b, k, 'qty', e.target.value === '' ? '' : Number(e.target.value))}
-                                              className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
-                                            />
-                                            <span className="text-bb-muted text-sm">×</span>
-                                            <input
-                                              type="number" min="0" placeholder="Rate"
-                                              value={p.rate || ''}
-                                              onChange={e => updateBundleMemberPrice(b, k, 'rate', Number(e.target.value) || 0)}
-                                              className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
-                                            />
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    {/* Total Group Price — auto-fills from the member qty x rate sum above whenever those change, but stays a plain editable field so you can just type a total directly instead */}
+                  {/* Unified rendering for both modes — bundles stay visually
+                      grouped either way; hidePrices only hides the price-
+                      related inputs (rate, group total), never the grouping
+                      itself. Reordering works in both modes too. */}
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(group.id, entries)}>
+                    <SortableContext items={entryIds} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {entries.map(entry => {
+                          if (entry.type === 'bundle') {
+                            const b = entry.bundle;
+                            return (
+                              <SortableEntry key={`bundle:${b.id}`} id={`bundle:${b.id}`}>
+                                <div className="p-2 bg-bb-accent/5 border border-bb-accent/30 rounded-lg space-y-2">
+                                  {/* Header: checkbox selects the whole bundle for Ungroup */}
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedBundles.has(b.id)}
+                                      onChange={() => toggleSelectBundle(b.id)}
+                                      className="w-4 h-4 accent-bb-accent shrink-0"
+                                      title="Select this group to ungroup"
+                                    />
+                                    <span className="text-sm font-semibold text-bb-text">{b.name}</span>
+                                  </div>
+                                  {/* Member rows — same layout/font size as standalone items below, one per line. Qty always shown; rate only when prices aren't hidden. */}
+                                  <div className="space-y-1.5 pl-6">
+                                    {b.itemKeys.map(k => {
+                                      const memberName = k.split('::').slice(1).join('::');
+                                      const p = itemPrices[k] || { qty: 1, rate: 0 };
+                                      return (
+                                        <div key={k} className="flex items-center gap-2">
+                                          <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{memberName}</p>
+                                          <input
+                                            type="number" min="1" placeholder="Qty"
+                                            value={p.qty === '' ? '' : (p.qty || 1)}
+                                            onChange={e => updateBundleMemberPrice(b, k, 'qty', e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                                          />
+                                          {!hidePrices && (
+                                            <>
+                                              <span className="text-bb-muted text-sm">×</span>
+                                              <input
+                                                type="number" min="0" placeholder="Rate"
+                                                value={p.rate || ''}
+                                                onChange={e => updateBundleMemberPrice(b, k, 'rate', Number(e.target.value) || 0)}
+                                                className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                              />
+                                            </>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* Total Group Price — hidden entirely while Hide Prices is on, since the section's Final Amount below takes over as the actual charged total */}
+                                  {!hidePrices && (
                                     <div className="flex items-center gap-2 pt-1.5 border-t border-bb-accent/20">
                                       <span className="text-xs font-semibold text-bb-muted uppercase flex-1">Total Group Price</span>
                                       <span className="text-bb-muted text-sm">₹</span>
@@ -610,50 +586,65 @@ export default function QuotationGenerator() {
                                         className="w-28 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm font-semibold text-bb-text text-right"
                                       />
                                     </div>
-                                  </div>
-                                </SortableEntry>
-                              );
-                            }
-
-                            const { key, name } = entry;
-                            return (
-                              <SortableEntry key={key} id={key}>
-                                <div className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
-                                  <input
-                                    type="checkbox"
-                                    checked={selected.has(name)}
-                                    onChange={() => toggleSelectForGroup(group.id, name)}
-                                    className="w-4 h-4 accent-bb-accent shrink-0"
-                                    title="Select for grouping"
-                                  />
-                                  <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{name}</p>
-                                  <input
-                                    type="number" min="1" placeholder="Qty"
-                                    value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
-                                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
-                                    className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
-                                  />
-                                  <span className="text-bb-muted text-sm">×</span>
-                                  <input
-                                    type="number" min="0" placeholder="Rate"
-                                    value={itemPrices[key]?.rate || ''}
-                                    onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
-                                    className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
-                                  />
-                                  <button
-                                    onClick={() => handleRemoveItem(group.id, name)}
-                                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                    title="Remove item"
-                                  >
-                                    <X size={16} />
-                                  </button>
+                                  )}
                                 </div>
                               </SortableEntry>
                             );
-                          })}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
+                          }
+
+                          const { key, name } = entry;
+                          return (
+                            <SortableEntry key={key} id={key}>
+                              <div className="flex items-center gap-2 p-2 bg-bb-input rounded-lg">
+                                <input
+                                  type="checkbox"
+                                  checked={selected.has(name)}
+                                  onChange={() => toggleSelectForGroup(group.id, name)}
+                                  className="w-4 h-4 accent-bb-accent shrink-0"
+                                  title="Select for grouping"
+                                />
+                                <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{name}</p>
+                                <input
+                                  type="number" min="1" placeholder="Qty"
+                                  value={itemPrices[key]?.qty === '' ? '' : (itemPrices[key]?.qty || 1)}
+                                  onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], qty: e.target.value === '' ? '' : Number(e.target.value) } }))}
+                                  className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 text-sm text-bb-text text-center"
+                                />
+                                {!hidePrices && (
+                                  <>
+                                    <span className="text-bb-muted text-sm">×</span>
+                                    <input
+                                      type="number" min="0" placeholder="Rate"
+                                      value={itemPrices[key]?.rate || ''}
+                                      onChange={e => setItemPrices(p => ({ ...p, [key]: { ...p[key], rate: Number(e.target.value) || 0 } }))}
+                                      className="w-24 bg-bb-bg border border-bb-border rounded px-2 py-1 text-sm text-bb-text text-right"
+                                    />
+                                  </>
+                                )}
+                                <button
+                                  onClick={() => handleRemoveItem(group.id, name)}
+                                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                  title="Remove item"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </SortableEntry>
+                          );
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+
+                  {/* Final Amount — only shown while Hide Prices is on; this becomes the section's actual charged total instead of the itemized/bundle sum above */}
+                  {hidePrices && (
+                    <Input
+                      label={`${group.name} — Final Amount (₹)`}
+                      type="number" min="0"
+                      value={finalAmounts[group.id] ?? ''}
+                      onChange={e => setFinalAmounts(f => ({ ...f, [group.id]: Number(e.target.value) || 0 }))}
+                      className="mt-2"
+                    />
                   )}
 
                   {group.items.length === 0 && (
@@ -909,7 +900,9 @@ export default function QuotationGenerator() {
                             <td style={{padding: '10px 12px 10px 24px', color: '#6b7280', fontSize: '12px'}}>{slNo}</td>
                             <td style={{padding: '10px 12px', color: '#1f2937', fontSize: '12px'}}>
                               <span style={{fontWeight: '600'}}>{b.name}</span>
-                              <br/><span style={{fontSize: '11px', color: '#6b7280'}}>{memberNames.join(', ')}</span>
+                              {memberNames.map((mn, i) => (
+                                <div key={i} style={{fontSize: '12px', color: '#1f2937', marginTop: '2px'}}>{mn}</div>
+                              ))}
                             </td>
                             <td style={{padding: '10px 12px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>—</td>
                             <td style={{padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>

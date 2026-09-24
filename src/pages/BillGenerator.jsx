@@ -503,7 +503,9 @@ export default function BillGenerator() {
                             <td style={{padding: '10px 8px', color: '#6b7280', fontFamily: 'monospace', fontSize: '11px'}}>{DEFAULT_SAC_CODE}</td>
                             <td style={{padding: '10px 8px', color: '#1f2937', fontSize: '12px'}}>
                               <span style={{fontWeight: '600'}}>{b.name}</span>
-                              <br/><span style={{fontSize: '11px', color: '#6b7280'}}>{memberNames.join(', ')}</span>
+                              {memberNames.map((mn, i) => (
+                                <div key={i} style={{fontSize: '12px', color: '#1f2937', marginTop: '2px'}}>{mn}</div>
+                              ))}
                             </td>
                             <td style={{padding: '10px 8px', textAlign: 'center', color: '#4b5563', fontSize: '12px'}}>—</td>
                             <td style={{padding: '10px 8px', textAlign: 'right', color: '#4b5563', fontSize: '12px'}}>—</td>
