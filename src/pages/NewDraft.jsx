@@ -162,6 +162,17 @@ export default function NewDraft() {
   /** Shorthand helper to update a single form field */
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
+  // Event Type dropdown: form.eventType holds the real value (a preset or
+  // free-typed custom text). Show "Other" as selected whenever the current
+  // value isn't one of the presets, and reveal a text input to type it.
+  const isCustomEventType = form.eventType !== '' && !EVENT_TYPES.includes(form.eventType);
+  const eventTypeSelectValue = isCustomEventType ? 'Other' : form.eventType;
+  const handleEventTypeSelect = (val) => {
+    // Switching to "Other" from a preset clears the field so the user
+    // types fresh; switching away from "Other" just applies the preset.
+    set('eventType', val === 'Other' ? (isCustomEventType ? form.eventType : '') : val);
+  };
+
   /** Update main event field */
   const setMainField = (key, val) => setMainEvent(p => ({ ...p, [key]: val }));
 
@@ -318,10 +329,18 @@ export default function NewDraft() {
         <h3 className="text-sm font-semibold text-bb-muted uppercase mb-3">Event Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Select label="Event Type" required options={EVENT_TYPES}
-            value={form.eventType} onChange={e => set('eventType', e.target.value)} error={errors.eventType} />
+            value={eventTypeSelectValue} onChange={e => handleEventTypeSelect(e.target.value)} error={errors.eventType} />
           <Input label="Budget" placeholder="Approx budget" icon={IndianRupee} type="number"
             value={form.budget} onChange={e => set('budget', e.target.value)} />
         </div>
+        {/* "Other" picked — let the user type a type not on the preset list
+            (a local ceremony name, etc.) instead of forcing a fixed set. */}
+        {isCustomEventType && (
+          <div className="mt-3">
+            <Input label="Specify Event Type" required placeholder="e.g., Madhuramveppu, Funeral, Election Event..."
+              value={form.eventType} onChange={e => set('eventType', e.target.value)} error={errors.eventType} />
+          </div>
+        )}
       </Card>
 
       {/* Main Event */}

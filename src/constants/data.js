@@ -9,11 +9,18 @@
 // EVENT TYPES
 // ============================================================
 
-/** Available event types for classification */
+/**
+ * Available event types for classification. "Other" is always last and,
+ * when chosen in the Event Type dropdown, prompts for a free-text custom
+ * type instead (see NewDraft.jsx / EditDraft.jsx) — Kerala event businesses
+ * regularly handle types not on any fixed list (e.g. a specific local
+ * ceremony name), so the list stays a set of common shortcuts, not a cap.
+ */
 export const EVENT_TYPES = [
-  'Wedding', 'Reception', 'Engagement', 'Birthday Party', 'Anniversary',
-  'Corporate Event', 'Conference', 'House Warming', 'Baby Shower',
-  'Religious Event', 'Government Event', 'College Event', 'Other',
+  'Wedding', 'Reception', 'Engagement', 'Madhuramveppu', 'Birthday Party',
+  'Baptism', 'Baby Shower', 'Haldi', 'Anniversary', 'Corporate Event',
+  'Conference', 'House Warming', 'Religious Event', 'Government Event',
+  'College Event', 'Celebration', 'Election', 'Funeral', 'Other',
 ];
 
 // ============================================================

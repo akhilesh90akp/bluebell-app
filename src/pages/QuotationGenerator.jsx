@@ -137,9 +137,12 @@ export default function QuotationGenerator() {
   const [gstRate, setGstRate] = useState(String(settings.defaultGstRate || 18));
   const [validityDays, setValidityDays] = useState(15);
 
-  // Add item state
-  const [newItemName, setNewItemName] = useState('');
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  // Add item state — each section (main event / each sub-event) gets its
+  // own free-text "add item" box, so items go into the section actually
+  // being edited instead of always landing on the main event.
+  const [newItemNames, setNewItemNames] = useState({}); // { [sectionId]: string }
+  // Which section's "Add from Categories" modal is open (null = closed).
+  const [categoryModalSection, setCategoryModalSection] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
 
   // Bundle creation: which standalone (not-yet-bundled) items are
@@ -284,21 +287,21 @@ export default function QuotationGenerator() {
   // EVENT HANDLERS — ITEMS
   // ------------------------------------------------------------
 
-  /** Adds a custom free-text item to the quotation (added to main event by default) */
-  const handleAddItem = () => {
-    const name = newItemName.trim();
+  /** Adds a custom free-text item to the given section's quotation (main event or a specific sub-event) */
+  const handleAddItem = (sectionId) => {
+    const name = (newItemNames[sectionId] || '').trim();
     if (!name) return;
-    if ((sectionItems.main || []).includes(name)) return;
-    setSectionItems(s => ({ ...s, main: [...(s.main || []), name] }));
-    setItemPrices(p => ({ ...p, [`main::${name}`]: { qty: 1, rate: 0 } }));
-    setNewItemName('');
+    if ((sectionItems[sectionId] || []).includes(name)) return;
+    setSectionItems(s => ({ ...s, [sectionId]: [...(s[sectionId] || []), name] }));
+    setItemPrices(p => ({ ...p, [`${sectionId}::${name}`]: { qty: 1, rate: 0 } }));
+    setNewItemNames(n => ({ ...n, [sectionId]: '' }));
   };
 
-  /** Adds a predefined item from a category to the quotation (added to main event) */
-  const handleAddFromCategory = (itemName) => {
-    if ((sectionItems.main || []).includes(itemName)) return;
-    setSectionItems(s => ({ ...s, main: [...(s.main || []), itemName] }));
-    setItemPrices(p => ({ ...p, [`main::${itemName}`]: { qty: 1, rate: 0 } }));
+  /** Adds a predefined item from a category to the given section's quotation */
+  const handleAddFromCategory = (sectionId, itemName) => {
+    if ((sectionItems[sectionId] || []).includes(itemName)) return;
+    setSectionItems(s => ({ ...s, [sectionId]: [...(s[sectionId] || []), itemName] }));
+    setItemPrices(p => ({ ...p, [`${sectionId}::${itemName}`]: { qty: 1, rate: 0 } }));
   };
 
   /** Removes an item from the quotation and its price data. If it belonged to a bundle, removes it from that bundle too (deleting the bundle if it drops to 1 member). */
@@ -730,28 +733,28 @@ export default function QuotationGenerator() {
                       Section Total: {formatCurrency(sectionTotals[group.id] || 0)}
                     </p>
                   )}
+
+                  {/* Add Item — scoped to this section, so items land on the
+                      main event or the specific sub-event being edited. */}
+                  <div className="mt-3 pt-3 border-t border-bb-border/60 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder={`Add item to ${group.name}...`}
+                        value={newItemNames[group.id] || ''}
+                        onChange={e => setNewItemNames(n => ({ ...n, [group.id]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && handleAddItem(group.id)}
+                        className="flex-1 bg-bb-input border border-bb-border rounded-lg px-3 py-2 text-sm text-bb-text placeholder:text-bb-muted/60 focus:outline-none focus:ring-2 focus:ring-bb-accent"
+                      />
+                      <Button size="sm" icon={Plus} onClick={() => handleAddItem(group.id)}>Add</Button>
+                    </div>
+                    <Button size="sm" variant="outline" icon={Package} onClick={() => setCategoryModalSection(group.id)}>
+                      Add from Categories
+                    </Button>
+                  </div>
                 </div>
               );
             })}
-          </div>
-
-          {/* Add Item Section */}
-          <div className="mt-4 pt-3 border-t border-bb-border space-y-3">
-            <p className="text-xs font-semibold text-bb-muted uppercase">Add Item</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Enter item name..."
-                value={newItemName}
-                onChange={e => setNewItemName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddItem()}
-                className="flex-1 bg-bb-input border border-bb-border rounded-lg px-3 py-2 text-sm text-bb-text placeholder:text-bb-muted/60 focus:outline-none focus:ring-2 focus:ring-bb-accent"
-              />
-              <Button size="sm" icon={Plus} onClick={handleAddItem}>Add</Button>
-            </div>
-            <Button size="sm" variant="outline" icon={Package} onClick={() => setShowCategoryModal(true)}>
-              Add from Categories
-            </Button>
           </div>
 
           {/* GST & Validity */}
@@ -815,11 +818,16 @@ export default function QuotationGenerator() {
         )}
       </Modal>
 
-      {/* Category Selection Modal - Accordion style */}
-      <Modal isOpen={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Add from Categories" size="lg">
+      {/* Category Selection Modal - Accordion style — scoped to whichever section's "Add from Categories" was clicked */}
+      <Modal
+        isOpen={!!categoryModalSection}
+        onClose={() => setCategoryModalSection(null)}
+        title={`Add from Categories — ${printGroups.find(g => g.id === categoryModalSection)?.name || ''}`}
+        size="lg"
+      >
         <div className="space-y-1 max-h-[60vh] overflow-y-auto">
           {categories.map(cat => {
-            const availableItems = (cat.items || []).filter(i => !(sectionItems.main || []).includes(i));
+            const availableItems = (cat.items || []).filter(i => !(sectionItems[categoryModalSection] || []).includes(i));
             const isExpanded = expandedCategories[cat.id];
             return (
               <div key={cat.id} className="border border-bb-border rounded-lg overflow-hidden">
@@ -838,7 +846,7 @@ export default function QuotationGenerator() {
                     {availableItems.map(item => (
                       <button
                         key={item}
-                        onClick={() => handleAddFromCategory(item)}
+                        onClick={() => handleAddFromCategory(categoryModalSection, item)}
                         className="w-full text-left px-3 py-2 rounded-lg text-sm text-bb-text hover:bg-bb-accent/10 hover:text-bb-accent transition-colors cursor-pointer"
                       >
                         <Plus size={14} className="inline mr-2" />{item}
