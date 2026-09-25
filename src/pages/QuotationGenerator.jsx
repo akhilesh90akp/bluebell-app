@@ -148,6 +148,10 @@ export default function QuotationGenerator() {
   // Which existing bundles are checkbox-selected (via their header checkbox)
   // — used to enable the top "Ungroup" button.
   const [selectedBundles, setSelectedBundles] = useState(new Set());
+  // Which individual members of an existing bundle are checkbox-selected —
+  // lets a user pull specific items back out of a group without dissolving
+  // the whole thing (checked without the bundle's own header checkbox).
+  const [selectedBundleMembers, setSelectedBundleMembers] = useState(new Set()); // Set<key>
   const [groupModalSection, setGroupModalSection] = useState(null);
   const [groupName, setGroupName] = useState('');
   const [groupAmount, setGroupAmount] = useState('');
@@ -246,11 +250,26 @@ export default function QuotationGenerator() {
     [selectedForGroup]
   );
   const groupSectionId = groupSections.length === 1 ? groupSections[0] : null;
-  const canGroup = !!groupSectionId && (selectedForGroup[groupSectionId]?.size || 0) >= 2;
+  const standaloneSelectedCount = groupSectionId ? (selectedForGroup[groupSectionId]?.size || 0) : 0;
+
+  // If exactly one existing bundle's header checkbox is checked, that bundle
+  // is the target to merge newly-selected standalone items into (rather than
+  // creating a brand new bundle).
+  const mergeTargetBundle = useMemo(() => {
+    if (selectedBundles.size !== 1) return null;
+    const id = Array.from(selectedBundles)[0];
+    return bundles.find(b => b.id === id) || null;
+  }, [selectedBundles, bundles]);
+
+  const canMergeIntoExisting = !!mergeTargetBundle && standaloneSelectedCount >= 1 &&
+    (!groupSectionId || mergeTargetBundle.itemKeys[0]?.split('::')[0] === groupSectionId);
+  const canCreateNewGroup = !mergeTargetBundle && !!groupSectionId && standaloneSelectedCount >= 2;
+  const canGroup = canMergeIntoExisting || canCreateNewGroup;
 
   // Whether the top "Ungroup" button should be enabled: any bundle checked
-  // via its header checkbox.
-  const canUngroup = selectedBundles.size > 0;
+  // via its header checkbox (full dissolve), or any individual member
+  // checked inside a bundle (pulls just that item out).
+  const canUngroup = selectedBundles.size > 0 || selectedBundleMembers.size > 0;
 
   if (!event) {
     return (
@@ -339,11 +358,45 @@ export default function QuotationGenerator() {
     });
   };
 
+  /** Toggles one bundle member's own checkbox — lets it be pulled out of its group individually via "Ungroup", without checking the group's header. */
+  const toggleSelectBundleMember = (key) => {
+    setSelectedBundleMembers(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   /** Opens the "Create Group" popup for whichever section currently has 2+ standalone items selected. */
   const openGroupModal = (sectionId) => {
     setGroupModalSection(sectionId);
     setGroupName('');
     setGroupAmount('');
+  };
+
+  /**
+   * Top "Group" button click handler. Routes between two behaviors:
+   * - If exactly one existing bundle is checked (via its header) and 1+
+   *   standalone items are also checked, merge those items straight into
+   *   that bundle (no modal — there's already a price to work with).
+   * - Otherwise, if 2+ standalone items are checked in one section, open
+   *   the "Create Group" modal to build a brand new bundle, as before.
+   */
+  const handleGroupClick = () => {
+    if (canMergeIntoExisting) {
+      const sectionId = mergeTargetBundle.itemKeys[0].split('::')[0];
+      const namesToAdd = Array.from(selectedForGroup[sectionId] || []);
+      if (namesToAdd.length === 0) return;
+      const keysToAdd = namesToAdd.map(n => `${sectionId}::${n}`);
+      setBundles(bs => bs.map(b => b.id === mergeTargetBundle.id
+        ? { ...b, itemKeys: [...b.itemKeys, ...keysToAdd] }
+        : b));
+      setSelectedForGroup(prev => ({ ...prev, [sectionId]: new Set() }));
+      setSelectedBundles(new Set());
+      showToast(`Added ${namesToAdd.length} item${namesToAdd.length > 1 ? 's' : ''} to "${mergeTargetBundle.name}"`);
+    } else if (canCreateNewGroup) {
+      openGroupModal(groupSectionId);
+    }
   };
 
   /** Confirms bundle creation: groups the selected items under one shared price and clears their individual selection. */
@@ -363,10 +416,24 @@ export default function QuotationGenerator() {
     setGroupModalSection(null);
   };
 
-  /** Dissolves every bundle currently selected via its header checkbox — members return to being normal, individually-priced items. */
+  /**
+   * Handles the top "Ungroup" button. Two things can be selected at once,
+   * and both are applied together:
+   * - Bundles checked via their own header checkbox are fully dissolved —
+   *   every member returns to being a normal, individually-priced item.
+   * - Individual members checked inside a (not fully-checked) bundle are
+   *   pulled out of that bundle only, leaving the rest of the group intact.
+   *   If this drops a bundle below 2 remaining members, it auto-dissolves
+   *   too, since a "bundle" of 1 item isn't a bundle (same rule as
+   *   handleRemoveItem).
+   */
   const handleUngroupSelected = () => {
-    setBundles(bs => bs.filter(b => !selectedBundles.has(b.id)));
+    setBundles(bs => bs
+      .filter(b => !selectedBundles.has(b.id))
+      .map(b => ({ ...b, itemKeys: b.itemKeys.filter(k => !selectedBundleMembers.has(k)) }))
+      .filter(b => b.itemKeys.length >= 2));
     setSelectedBundles(new Set());
+    setSelectedBundleMembers(new Set());
   };
 
   /**
@@ -489,7 +556,7 @@ export default function QuotationGenerator() {
               <Button
                 size="sm" variant="outline" icon={Layers}
                 disabled={!canGroup}
-                onClick={() => canGroup && openGroupModal(groupSectionId)}
+                onClick={handleGroupClick}
               >
                 Group
               </Button>
@@ -552,6 +619,13 @@ export default function QuotationGenerator() {
                                       const p = itemPrices[k] || { qty: 1, rate: 0 };
                                       return (
                                         <div key={k} className="flex items-center gap-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedBundleMembers.has(k)}
+                                            onChange={() => toggleSelectBundleMember(k)}
+                                            className="w-4 h-4 accent-bb-accent shrink-0"
+                                            title="Select to pull this item out of the group"
+                                          />
                                           <p className="flex-1 min-w-0 text-sm text-bb-text truncate">{memberName}</p>
                                           <input
                                             type="number" min="1" placeholder="Qty"
